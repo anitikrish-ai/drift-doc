@@ -35,6 +35,25 @@ html.light {
 }
 html.theme-fade, html.theme-fade * { transition: background-color .45s var(--ease-out), border-color .45s var(--ease-out), color .45s var(--ease-out), box-shadow .45s var(--ease-out), fill .45s var(--ease-out) !important; }
 
+/* Theme-change animation: a circular reveal growing out from the toggle,
+   driven by the browser's native View Transitions engine (ThemeToggle.drift
+   sets --vt-x/--vt-y to the toggle's screen position before calling
+   document.startViewTransition). Chromium-only; unsupported browsers simply
+   never get this pseudo-element and fall back to the theme-fade crossfade
+   above, so nothing breaks elsewhere. */
+@supports (view-transition-name: root) {
+  ::view-transition-group(root) { animation-duration: .6s; }
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+  ::view-transition-new(root) {
+    clip-path: circle(0% at var(--vt-x, 50%) var(--vt-y, 50%));
+    animation: drift-theme-reveal .6s var(--ease-out) forwards;
+  }
+  @keyframes drift-theme-reveal { to { clip-path: circle(150% at var(--vt-x, 50%) var(--vt-y, 50%)); } }
+  @media (prefers-reduced-motion: reduce) {
+    ::view-transition-new(root) { animation: none; clip-path: none; }
+  }
+}
+
 /* Aurora: static (no full-viewport motion), gives the glass something to bend */
 body { background: transparent; letter-spacing: 0; }
 body::before {

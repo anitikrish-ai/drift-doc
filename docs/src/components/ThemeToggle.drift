@@ -21,11 +21,29 @@
       // Theme: saved choice, else system preference. Dark = knob on the right.
       var saved = null; try { saved = localStorage.getItem('drift-theme'); } catch (e) {}
       root.classList.toggle('light', saved === 'light' || (!saved && matchMedia('(prefers-color-scheme: light)').matches));
-      function commit(dark) {
-        root.classList.add('theme-fade'); clearTimeout(fadeT); fadeT = setTimeout(function () { root.classList.remove('theme-fade'); }, 500);
-        root.classList.toggle('light', !dark);
-        try { localStorage.setItem('drift-theme', dark ? 'dark' : 'light'); } catch (e) {}
-        if (navigator.vibrate) navigator.vibrate(8); // same frame as the flip
+      function label(b, dark) { b.setAttribute('aria-label', dark ? 'Dark mode' : 'Light mode'); b.title = dark ? 'Dark mode' : 'Light mode'; }
+      function commit(dark, originEl) {
+        var apply = function () {
+          root.classList.add('theme-fade'); clearTimeout(fadeT); fadeT = setTimeout(function () { root.classList.remove('theme-fade'); }, 500);
+          root.classList.toggle('light', !dark);
+          try { localStorage.setItem('drift-theme', dark ? 'dark' : 'light'); } catch (e) {}
+          if (navigator.vibrate) navigator.vibrate(8); // same frame as the flip
+        };
+        // Real theme-change animation: a circular reveal growing from the toggle
+        // itself, done by the browser's own View Transitions engine (Chromium) —
+        // not another hand-rolled animation loop. Unsupported/reduced-motion
+        // browsers just get the instant class swap under the existing
+        // `theme-fade` CSS crossfade (glass.css), so nothing regresses there.
+        if (!reduced && document.startViewTransition) {
+          if (originEl) {
+            var r = originEl.getBoundingClientRect();
+            root.style.setProperty('--vt-x', (r.left + r.width / 2) + 'px');
+            root.style.setProperty('--vt-y', (r.top + r.height / 2) + 'px');
+          }
+          document.startViewTransition(apply);
+        } else {
+          apply();
+        }
       }
       // Bug fix: sync() used to run again on `DOMContentLoaded` and `load` (the
       // latter fires only once this page's ~3MB of JS, incl. the code editor,
@@ -38,7 +56,7 @@
       // have sync() skip any button that's mid-transition.
       function sync() {
         var dark = !root.classList.contains('light');
-        $$('.liquid-toggle').forEach(function (b) { if ((!st || st.b !== b) && !b.__drift_busy) { b.setAttribute('aria-pressed', dark); setC(b, dark ? 100 : 0); } });
+        $$('.liquid-toggle').forEach(function (b) { if ((!st || st.b !== b) && !b.__drift_busy) { b.setAttribute('aria-pressed', dark); setC(b, dark ? 100 : 0); label(b, dark); } });
       }
       sync(); requestAnimationFrame(sync); addEventListener('DOMContentLoaded', sync); addEventListener('load', sync);
 
@@ -54,7 +72,8 @@
       }
       function go(b, target, v) {
         b.__drift_busy = true;
-        commit(target === 100);
+        commit(target === 100, b);
+        label(b, target === 100);
         cancelAnim = spring(cur(b), target, v, function (x) { setC(b, x); }, function () {
           setTimeout(function () { flag(b, false); b.setAttribute('aria-pressed', target === 100); b.__drift_busy = false; }, 50);
         }, reduced ? 0.12 : 0.25);
@@ -69,7 +88,7 @@
         var b = e.target.closest && e.target.closest('.liquid-toggle'); if (!b || e.button > 0) return;
         clearTimeout(timer); cancelAnim(); // grab it mid-flight
         b.setPointerCapture(e.pointerId); flag(b, true);
-        b.__drift_pointerAt = performance.now(); // see click listener below
+        b.__drift_pointerHandled = true; // see click listener below
         st = { b: b, x0: e.clientX, last: e.clientX, lt: performance.now(), v: 0, c0: cur(b), drag: false, travel: b.offsetWidth * 0.4 };
       });
       document.addEventListener('pointermove', function (e) {
@@ -102,15 +121,16 @@
       });
       document.addEventListener('click', function (e) { // keyboard only; pointer is handled above
         var b = e.target.closest && e.target.closest('.liquid-toggle'); if (!b) return;
-        // Bug fix: `e.detail === 0` was meant to mean "no pointer, so this is
-        // keyboard activation" — but several mobile browsers fire the
-        // synthetic `click` that follows a touch tap with `detail === 0` too,
-        // not just real Enter/Space. That made every tap run `tap(b)` TWICE:
-        // once from pointerup, once from here, flipping the toggle back to
-        // where it started before the theme change ever committed (knob
-        // visibly moves, theme silently reverts). Guard on real elapsed time
-        // since this button's last pointerdown instead of trusting `detail`.
-        if (b.__drift_pointerAt && performance.now() - b.__drift_pointerAt < 500) return;
+        // Bug fix: this used to gate on `e.detail === 0`, meaning "no pointer,
+        // so this is keyboard activation" — but several mobile browsers fire
+        // the synthetic `click` that follows a touch tap with `detail === 0`
+        // too, not just real Enter/Space. That ran tap(b) TWICE per physical
+        // tap (once from pointerup, once from here), flipping the toggle
+        // right back before the theme change committed: knob visibly moves,
+        // theme silently reverts. A time-window guard is still a race; a flag
+        // set by pointerdown and consumed (cleared) right here is not —
+        // exactly one of these two paths can ever run tap() per interaction.
+        if (b.__drift_pointerHandled) { b.__drift_pointerHandled = false; return; }
         clearTimeout(timer); cancelAnim(); tap(b);
       });
     })();

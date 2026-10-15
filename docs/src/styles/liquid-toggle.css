@@ -6,8 +6,10 @@
 }
 .liquid-toggle, .liquid-toggle span { display: block; }
 .liquid-toggle {
-  --unchecked: hsl(218, 8%, 81%); --width: 84; --height: 36; --border: 3px;
-  --checked: hsl(var(--hue, 222), calc((8 + (var(--complete) / 100 * 92)) * 1%), calc((81 - (var(--complete) / 100 * (81 - 43))) * 1%));
+  /* Off/light state tuned to a crisp near-white (94% lightness) instead of the
+     previous mid-gray, so the toggle itself reads as "light theme" at a glance. */
+  --unchecked: hsl(218, 8%, 94%); --width: 84; --height: 36; --border: 3px;
+  --checked: hsl(var(--hue, 222), calc((8 + (var(--complete) / 100 * 92)) * 1%), calc((94 - (var(--complete) / 100 * (94 - 43))) * 1%));
   height: calc(var(--height) * 1px); width: calc(var(--width) * 1px);
   border: 0; padding: 0; border-radius: 100px; background: #0000; cursor: pointer; position: relative;
   overflow: visible; container-type: inline-size; outline-offset: 2px; transition: outline var(--transition) var(--ease);
