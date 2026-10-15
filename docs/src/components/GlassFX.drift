@@ -26,7 +26,7 @@
       // 2. Pointer-tracked specular glare (rAF-batched to avoid layout thrash on fast moves)
       var glarePending = false, glareEvent = null;
       document.addEventListener('pointermove', function (e) {
-        var c = e.target.closest && e.target.closest('.feature-card, .code-card, .site-header');
+        var c = e.target.closest && e.target.closest('.feature-card, .code-card');
         if (!c) return;
         glareEvent = { c: c, x: e.clientX, y: e.clientY };
         if (glarePending) return;
@@ -188,7 +188,7 @@
       }
 
       // 7. Real refraction on small glass surfaces (Chromium); frosted fallback elsewhere
-      var GLASS_SELECTOR = '.header-nav, .search-trigger, .github-btn, .install-command-box, .gfx-toc, .palette';
+      var GLASS_SELECTOR = '.header-nav, .search-trigger, .github-btn, .install-command-box, .gfx-toc, .palette, .docs-sidebar';
       var glassed = typeof WeakSet === 'function' ? new WeakSet() : null;
       function glassify() {
         if (typeof window.liquidGlass !== 'function' || matchMedia('(prefers-reduced-transparency: reduce)').matches) return;

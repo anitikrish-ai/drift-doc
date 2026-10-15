@@ -33,7 +33,7 @@ html.light {
   --glass-edge: inset 0 1px 1px rgba(255,255,255,.95), inset 0 0 0 1px rgba(255,255,255,.6);
   --glass-shadow: 0 20px 50px rgba(30,50,90,.16);
 }
-html.theme-fade, html.theme-fade * { transition: background-color .45s var(--ease-out), border-color .45s var(--ease-out), color .45s var(--ease-out) !important; }
+html.theme-fade, html.theme-fade * { transition: background-color .45s var(--ease-out), border-color .45s var(--ease-out), color .45s var(--ease-out), box-shadow .45s var(--ease-out), fill .45s var(--ease-out) !important; }
 
 /* Aurora: static (no full-viewport motion), gives the glass something to bend */
 body { background: transparent; letter-spacing: 0; }
@@ -127,47 +127,41 @@ html.light body::before {
   .gfx-toc a.on { color: var(--text-primary); background: rgba(56,189,248,.16); font-weight: 600; }
 }
 
-/* Floating chrome (desktop). Below 1025px the existing drawer layout is kept. */
+/* Floating chrome (desktop). Below 1025px the existing drawer layout is kept.
+   Bug fix: an earlier pass put `overflow: hidden` directly on .site-header to
+   clip a glare pseudo-element — but .header-mobile-drawer is a DOM child of
+   .site-header too (see Header.drift), and a `position: fixed` descendant
+   gets visually clipped by any ancestor's `overflow: hidden`, regardless of
+   its own top/left/right/bottom. That silently broke the mobile nav drawer
+   (squashed into the ~60px header strip instead of a full-height panel) —
+   the "overlapping nav" bug. Fixed by never setting overflow on .site-header
+   itself; real refraction (the actual bend, not a painted highlight) lives
+   on .header-nav via liquidGlass() in GlassFX.drift, which is a safe, no
+   non-fixed-position-affecting sibling of the drawer instead. */
 @media (min-width: 1025px) {
   .site-header {
     top: .75rem; height: 3.75rem; width: calc(100% - 2rem); max-width: 88rem; margin: .75rem auto 0; border: 0; border-radius: 999px;
-    /* Static diagonal sheen (light catching the curved pill) layered under the tint, plus a dynamic pointer-tracked glare (::after below). */
-    background: linear-gradient(115deg, rgba(255,255,255,.24) 0%, rgba(255,255,255,0) 20%, rgba(255,255,255,0) 72%, rgba(255,255,255,.12) 100%), var(--glass-tint);
+    background: var(--glass-tint);
     box-shadow: var(--glass-edge), var(--glass-shadow); -webkit-backdrop-filter: blur(28px) saturate(180%); backdrop-filter: blur(28px) saturate(180%);
-    position: relative; overflow: hidden; isolation: isolate;
   }
-  /* Pointer-tracked specular glare — same mechanism as .feature-card/.code-card, driven by GlassFX */
-  .site-header::after {
-    content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; z-index: 0;
-    background: radial-gradient(22rem circle at var(--mx) var(--my), rgba(255,255,255,.2), transparent 60%);
-    transition: opacity .3s var(--ease-out);
-  }
-  .site-header:hover::after { opacity: 1; }
-  .header-inner, .header-left, .header-nav, .header-actions { position: relative; z-index: 1; }
   .header-inner { padding: 0 1rem 0 1.25rem; }
+  /* .header-nav gets real pixel refraction (liquidGlass, see GlassFX.drift) — this is
+     the actual "bend", not a drawn gradient. */
   .header-nav { display: flex; gap: .15rem; padding: .3rem; border-radius: 999px; background: rgba(255,255,255,.05); box-shadow: var(--glass-edge); }
-  .nav-link { padding: .4rem .9rem; border-radius: 999px; font-size: .9rem; font-weight: 600; color: var(--text-secondary); transition: background-color .2s, color .2s; position: relative; overflow: hidden; }
+  .nav-link { padding: .4rem .9rem; border-radius: 999px; font-size: .9rem; font-weight: 600; color: var(--text-secondary); transition: background-color .25s var(--ease-out), color .25s var(--ease-out); }
   .nav-link:hover { background: rgba(255,255,255,.1); color: var(--text-primary); }
+  /* .docs-sidebar also gets real refraction now (GlassFX GLASS_SELECTOR) — its width
+     (17.5rem ≈ 280px) is well under the ~800px/side cost guideline even though its
+     height runs the full viewport, so the bend stays cheap. */
   .docs-sidebar {
     top: var(--header-height); height: calc(100vh - var(--header-height) - 1rem); margin: 0 0 1rem; border: 0; border-radius: 1.75rem;
-    /* Static top-edge sheen — a background layer isn't affected by the sidebar's own overflow-y scroll, so the reflection stays put while links scroll under it. */
-    background: linear-gradient(165deg, rgba(255,255,255,.16) 0%, rgba(255,255,255,0) 26%, rgba(255,255,255,0) 100%), var(--glass-heavy);
+    background: var(--glass-heavy);
     box-shadow: var(--glass-edge), var(--glass-shadow); -webkit-backdrop-filter: blur(36px) saturate(150%); backdrop-filter: blur(36px) saturate(150%);
   }
-  .sidebar-link { border-radius: .75rem; transition: background-color .2s, color .2s, transform .1s; position: relative; overflow: hidden; }
+  .sidebar-link { border-radius: .75rem; transition: background-color .25s var(--ease-out), color .25s var(--ease-out), transform .15s var(--ease-out); }
   .sidebar-link:active { transform: scale(.98); }
   .sidebar-link.active { background: rgba(56,189,248,.18); box-shadow: inset 0 1px 0 rgba(255,255,255,.18); }
   .docs-sidebar { -webkit-mask-image: linear-gradient(#000 calc(100% - 1.5rem), transparent); mask-image: linear-gradient(#000 calc(100% - 1.5rem), transparent); }
-  /* Light-sweep reflection on hover: a soft diagonal highlight glides across the glass pill/link, like light moving over a curved glass edge. */
-  .nav-link::after, .sidebar-link::after {
-    content: ''; position: absolute; inset: 0; pointer-events: none;
-    background: linear-gradient(100deg, transparent 35%, rgba(255,255,255,.4) 50%, transparent 65%);
-    transform: translateX(-130%); transition: transform .65s var(--ease-out);
-  }
-  .nav-link:hover::after, .sidebar-link:hover::after { transform: translateX(130%); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .nav-link::after, .sidebar-link::after, .site-header::after { transition: none !important; display: none !important; }
 }
 .site-footer { margin-top: 4rem; border-radius: 2rem 2rem 0 0; }
 
