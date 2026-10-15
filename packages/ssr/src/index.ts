@@ -1,0 +1,818 @@
+import { type CompiledModule, Opcode } from "driftjs-compiler";
+import {
+  evaluateExpression,
+  resolveComponentModule,
+  evaluatePropsSpec,
+  normalizeStyle,
+  pushActiveVM,
+  popActiveVM,
+  resolveIterable,
+  VOID_ELEMENTS,
+  createContext,
+  provide,
+  inject,
+  provideContext,
+  injectContext,
+  effect,
+  onMount,
+  onUnmount,
+  type Context,
+  escapeHtml,
+  isValidHtmlTagName,
+  VALID_TAG_NAME_REGEX,
+  VALID_ATTR_NAME_REGEX,
+} from "driftjs-shared";
+import type { SSRExecutionOptions, StreamOptions, DriftStream, ServerNode, IslandRenderOptions } from "../types/index.js";
+
+export * from "../types/index.js";
+export {
+  createContext,
+  provide,
+  inject,
+  provideContext,
+  injectContext,
+  effect,
+  onMount,
+  onUnmount,
+  type Context,
+};
+
+const FORBIDDEN_SCOPE_KEYS = new Set(['__proto__', 'constructor', 'prototype', '__drift_mark_dirty__']);
+
+/**
+ * Safely assigns a loop / `@async` alias variable onto a child scope, guarding against
+ * prototype pollution.
+ */
+function setLoopVar(scope: Record<string, any>, key: string, val: any): void {
+  if (!scope || typeof scope !== 'object' || FORBIDDEN_SCOPE_KEYS.has(key)) return;
+  scope[key] = val;
+}
+
+/**
+ * Populates a child scope with a resolved `@async` value, preferring the AOT alias
+ * populator the compiler emits from the retained pattern AST (BUG-115). Falls back to a
+ * plain identifier assignment for hand-crafted/legacy modules.
+ */
+function populateAsyncValue(
+  childScope: Record<string, any>,
+  alias: string,
+  val: any,
+  aliasPopulator: any,
+  declaredVars: Set<string>
+): void {
+  if (aliasPopulator) {
+    const populate = evaluateExpression(aliasPopulator, childScope, declaredVars);
+    if (typeof populate === 'function') {
+      populate(val, 0);
+      return;
+    }
+  }
+  setLoopVar(childScope, alias, val);
+}
+
+/**
+ * Register-based Virtual Machine for Server-Side Rendering (SSR) in DriftJS.
+
+ * Executes bytecode without DOM dependencies and serializes directly to HTML string.
+ */
+export class DriftServerVM {
+  private static readonly MAX_REGISTERS = 256;
+  private readonly registers: ServerNode[] = new Array(DriftServerVM.MAX_REGISTERS);
+  private scope: Record<string, any> = {};
+  private declaredVars: Set<string> = new Set();
+  public parentVM: DriftServerVM | null = null;
+  public contextMap = new Map<symbol | string, any>();
+  public asyncBoundaries: Array<{
+    id: number;
+    promise: any;
+    alias: string;
+    bodyMod: any;
+    fallbackMod: any;
+    catchMod: any;
+    scope: any;
+    aliasPopulator: any;
+    declaredVars: Set<string>;
+  }> = [];
+  public isStreaming = false;
+  private static nextAsyncId = 1;
+
+  private checkRegister(index: number): void {
+    if (index < 0 || index >= DriftServerVM.MAX_REGISTERS) {
+      throw new Error(`Register index ${index} out of bounds (0-${DriftServerVM.MAX_REGISTERS - 1})`);
+    }
+  }
+
+  private setRegister(index: number, value: ServerNode): void {
+    this.checkRegister(index);
+    this.registers[index] = value;
+  }
+
+  private getRegister(index: number): any {
+    this.checkRegister(index);
+    return this.registers[index];
+  }
+
+  public execute(rawModule: CompiledModule, options: SSRExecutionOptions = {}): ServerNode | null {
+    const module = (resolveComponentModule(rawModule) || rawModule) as CompiledModule;
+    const parentScope = options.scope || null;
+    this.scope = Object.assign(
+      Object.create(parentScope),
+      module.scope
+    );
+
+    if (module.derived && module.derived.length > 0) {
+      for (const d of module.derived) {
+        const exprConst = module.constants[d.exprIdx];
+        Object.defineProperty(this.scope, d.name, {
+          get: () => evaluateExpression(exprConst, this.scope, this.declaredVars),
+          enumerable: true,
+          configurable: true,
+        });
+      }
+    }
+
+    this.declaredVars = new Set(module.declaredVars ?? []);
+    this.registers.fill(null as any);
+
+    const bytecode = module.bytecode;
+    const constants = module.constants;
+    let pc = 0;
+
+    pushActiveVM(this);
+    try {
+      while (pc < bytecode.length) {
+        const opcode = bytecode[pc]!;
+
+        switch (opcode) {
+          case Opcode.RETURN: {
+            pc += 1;
+            break;
+          }
+
+          case Opcode.CREATE_ELEMENT: {
+            const dstReg = bytecode[pc + 1]!;
+            const tagIdx = bytecode[pc + 2]!;
+            const tag = String(constants[tagIdx]);
+            this.setRegister(dstReg, {
+              type: 'element',
+              tag,
+              attrs: new Map(),
+              children: [],
+            });
+            pc += 3;
+            break;
+          }
+
+          case Opcode.MOUNT_COMPONENT: {
+            const dstReg = bytecode[pc + 1]!;
+            const tagIdx = bytecode[pc + 2]!;
+            const propsSpecIdx = bytecode[pc + 3]!;
+            const tag = String(constants[tagIdx]);
+
+            const rawComp = (this.scope && tag in this.scope) ? this.scope[tag] : (typeof globalThis !== 'undefined' && (globalThis as any)[tag]);
+            const compMod = resolveComponentModule(rawComp);
+            if (compMod) {
+              const propsSpec = propsSpecIdx !== 0xFF ? constants[propsSpecIdx] : null;
+              const propsObj = evaluatePropsSpec(propsSpec, this.scope, this.declaredVars);
+
+              let childrenNode: ServerNode | undefined = undefined;
+              if (propsSpec && (propsSpec as any).__drift_children__ !== undefined) {
+                const childrenSubMod = constants[(propsSpec as any).__drift_children__] ?? (propsSpec as any).__drift_children__;
+                if (childrenSubMod) {
+                  const childrenVm = new DriftServerVM();
+                  childrenVm.parentVM = this;
+                  childrenNode = childrenVm.execute(childrenSubMod, { scope: this.scope }) ?? undefined;
+                }
+              }
+
+              const subVm = new DriftServerVM();
+              subVm.parentVM = this;
+              const childScope = Object.assign(Object.create(this.scope), { props: propsObj }, propsObj);
+              if (childrenNode !== undefined) {
+                childScope.children = childrenNode;
+              }
+              const compNode = subVm.execute(compMod, { scope: childScope });
+
+              let islandTrigger: string | null = null;
+              let islandMedia: string | undefined;
+              if ('client:load' in propsObj) islandTrigger = 'eager';
+              else if ('client:idle' in propsObj) islandTrigger = 'idle';
+              else if ('client:visible' in propsObj) islandTrigger = 'visible';
+              else if ('client:interaction' in propsObj) islandTrigger = 'interaction';
+              else if ('client:media' in propsObj) {
+                islandTrigger = 'media';
+                islandMedia = typeof propsObj['client:media'] === 'string' ? propsObj['client:media'] : undefined;
+              }
+
+              if (islandTrigger) {
+                const islandAttrs = new Map<string, string | boolean | null>();
+                islandAttrs.set('data-drift-island', tag);
+                islandAttrs.set('data-drift-trigger', islandTrigger);
+                if (islandMedia) {
+                  islandAttrs.set('data-drift-media', islandMedia);
+                }
+                const filteredProps: Record<string, any> = {};
+                for (const [k, v] of Object.entries(propsObj)) {
+                  if (!k.startsWith('client:') && k !== '__drift_children__' && k !== '__drift_props__') {
+                    filteredProps[k] = v;
+                  }
+                }
+                if (Object.keys(filteredProps).length > 0) {
+                  islandAttrs.set('data-drift-props', JSON.stringify(filteredProps));
+                }
+                const wrapperNode: ServerNode = {
+                  type: 'element',
+                  tag: 'div',
+                  attrs: islandAttrs,
+                  children: compNode ? [compNode] : [],
+                };
+                this.setRegister(dstReg, wrapperNode);
+              } else {
+                if (compNode) this.setRegister(dstReg, compNode);
+              }
+            }
+            pc += 4;
+            break;
+          }
+
+        case Opcode.CREATE_TEXT: {
+          const dstReg = bytecode[pc + 1]!;
+          const textIdx = bytecode[pc + 2]!;
+          const textConst = constants[textIdx];
+          const val = evaluateExpression(textConst, this.scope, this.declaredVars);
+          const content = val != null ? String(val) : '';
+          this.setRegister(dstReg, {
+            type: 'text',
+            content,
+            children: [],
+          });
+          pc += 3;
+          break;
+        }
+
+        case Opcode.CREATE_COMMENT: {
+          const dstReg = bytecode[pc + 1]!;
+          const commentIdx = bytecode[pc + 2]!;
+          const content = String(constants[commentIdx]);
+          this.setRegister(dstReg, {
+            type: 'comment',
+            content,
+            children: [],
+          });
+          pc += 3;
+          break;
+        }
+
+        case Opcode.CREATE_FRAGMENT: {
+          const dstReg = bytecode[pc + 1]!;
+          this.setRegister(dstReg, {
+            type: 'fragment',
+            children: [],
+          });
+          pc += 2;
+          break;
+        }
+
+        case Opcode.APPEND_CHILD: {
+          const parentReg = bytecode[pc + 1]!;
+          const childReg = bytecode[pc + 2]!;
+          const parentNode = this.getRegister(parentReg);
+          const childNode = this.getRegister(childReg);
+          parentNode.children.push(childNode);
+          pc += 3;
+          break;
+        }
+
+        case Opcode.SET_ATTR: {
+          const elemReg = bytecode[pc + 1]!;
+          const nameIdx = bytecode[pc + 2]!;
+          const valIdx = bytecode[pc + 3]!;
+          const isDynamic = bytecode[pc + 4]!;
+
+          const elemNode = this.getRegister(elemReg);
+          const attrName = String(constants[nameIdx]);
+          if (attrName.startsWith('on')) {
+            pc += 5;
+            break;
+          }
+
+          const rawVal = constants[valIdx];
+          let val = isDynamic === 1 ? evaluateExpression(rawVal, this.scope, this.declaredVars) : rawVal;
+          if (attrName === 'style') {
+            val = normalizeStyle(val);
+          }
+
+          if (!elemNode.attrs) elemNode.attrs = new Map();
+          if (attrName === 'className') {
+            elemNode.attrs.set('class', val);
+          } else {
+            elemNode.attrs.set(attrName, val);
+          }
+          pc += 5;
+          break;
+        }
+
+        case Opcode.INTERPOLATE_TEXT: {
+          const dstReg = bytecode[pc + 1]!;
+          const exprIdx = bytecode[pc + 2]!;
+          const expr = constants[exprIdx];
+          const val = evaluateExpression(expr, this.scope, this.declaredVars);
+          if (val && typeof val === 'object' && 'type' in val && Array.isArray(val.children)) {
+            this.setRegister(dstReg, val);
+          } else {
+            const content = val != null ? String(val) : '';
+            this.setRegister(dstReg, {
+              type: 'text',
+              content,
+              children: [],
+            });
+          }
+          pc += 3;
+          break;
+        }
+
+        case Opcode.EXEC_SCRIPT: {
+          const scriptIdx = bytecode[pc + 1]!;
+          const scriptAst = constants[scriptIdx];
+          if (Array.isArray(scriptAst)) {
+            for (const stmt of scriptAst) {
+              evaluateExpression(stmt, this.scope, this.declaredVars);
+            }
+          } else if (scriptAst) {
+            evaluateExpression(scriptAst, this.scope, this.declaredVars);
+          }
+          pc += 2;
+          break;
+        }
+
+        case Opcode.REACTIVE_IF: {
+          const parentReg = bytecode[pc + 1]!;
+          const condIdx = bytecode[pc + 2]!;
+          const consIdx = bytecode[pc + 3]!;
+          const altIdx = bytecode[pc + 4]!;
+
+          const parentNode = this.getRegister(parentReg);
+          const condExpr = constants[condIdx];
+          const consMod = constants[consIdx];
+          const altMod = altIdx !== 0xFF ? constants[altIdx] : null;
+
+          const cond = evaluateExpression(condExpr, this.scope, this.declaredVars);
+          const subMod = cond ? consMod : altMod;
+
+          parentNode.children.push({ type: 'comment', content: 'if', children: [] });
+          if (subMod) {
+            const childScope = Object.create(this.scope);
+            const subVm = new DriftServerVM();
+            subVm.parentVM = this;
+            const subResult = subVm.execute(subMod, { scope: childScope });
+            if (subResult) parentNode.children.push(subResult);
+          }
+          parentNode.children.push({ type: 'comment', content: '/if', children: [] });
+          pc += 6;
+          break;
+        }
+
+        case Opcode.REACTIVE_SWITCH: {
+          const parentReg = bytecode[pc + 1]!;
+          const discIdx = bytecode[pc + 2]!;
+          const casesTableIdx = bytecode[pc + 3]!;
+          const defaultModIdx = bytecode[pc + 4]!;
+
+          const parentNode = this.getRegister(parentReg);
+          const discExpr = constants[discIdx];
+          const casesTable = constants[casesTableIdx] as { testIdx: number; modIdx: number }[];
+          const defaultMod = defaultModIdx !== 0xFF ? constants[defaultModIdx] : null;
+
+          const discVal = evaluateExpression(discExpr, this.scope, this.declaredVars);
+          let matchedMod = defaultMod;
+          if (Array.isArray(casesTable)) {
+            for (let i = 0; i < casesTable.length; i++) {
+              const c = casesTable[i]!;
+              const caseVal = evaluateExpression(constants[c.testIdx], this.scope, this.declaredVars);
+              if (discVal === caseVal) {
+                matchedMod = constants[c.modIdx];
+                break;
+              }
+            }
+          }
+
+          parentNode.children.push({ type: 'comment', content: 'switch', children: [] });
+          if (matchedMod) {
+            const childScope = Object.create(this.scope);
+            const subVm = new DriftServerVM();
+            subVm.parentVM = this;
+            const subResult = subVm.execute(matchedMod, { scope: childScope });
+            if (subResult) parentNode.children.push(subResult);
+          }
+          parentNode.children.push({ type: 'comment', content: '/switch', children: [] });
+          pc += 6;
+          break;
+        }
+
+        case Opcode.REACTIVE_FOR: {
+          const parentReg = bytecode[pc + 1]!;
+          const iterIdx = bytecode[pc + 2]!;
+          const itemNameIdx = bytecode[pc + 3]!;
+          const idxNameIdx = bytecode[pc + 4]!;
+          const keyIdx = bytecode[pc + 5]!;
+          const bodyIdx = bytecode[pc + 6]!;
+          // BUG-112 fix: read itemPopulatorIdx (operand 10) for AOT scope population.
+          const itemPopulatorRawIdx = bytecode[pc + 10] ?? 0xFF;
+          const itemPopulatorConst = itemPopulatorRawIdx !== 0xFF ? constants[itemPopulatorRawIdx] : null;
+
+          const parentNode = this.getRegister(parentReg);
+          const iterExpr = constants[iterIdx];
+          const itemName = constants[itemNameIdx] as string;
+          const indexName = idxNameIdx !== 0xFF ? constants[idxNameIdx] as string : null;
+          const bodyMod = constants[bodyIdx];
+
+          const rawIter = evaluateExpression(iterExpr, this.scope, this.declaredVars);
+          const items = resolveIterable(rawIter);
+
+          parentNode.children.push({ type: 'comment', content: 'for', children: [] });
+          for (let i = 0; i < items.length; i++) {
+            const childScope = Object.create(this.scope);
+            // Prefer the AOT populator; otherwise fall back to plain identifier assignment.
+            if (itemPopulatorConst) {
+              const populate = evaluateExpression(itemPopulatorConst, childScope, this.declaredVars);
+              if (typeof populate === 'function') {
+                populate(items[i], i);
+              } else {
+                setLoopVar(childScope, itemName, items[i]);
+                if (indexName) setLoopVar(childScope, indexName, i);
+              }
+            } else {
+              setLoopVar(childScope, itemName, items[i]);
+              if (indexName) setLoopVar(childScope, indexName, i);
+            }
+
+            const subVm = new DriftServerVM();
+            subVm.parentVM = this;
+            const subResult = subVm.execute(bodyMod, { scope: childScope });
+            if (subResult) parentNode.children.push(subResult);
+          }
+          parentNode.children.push({ type: 'comment', content: '/for', children: [] });
+          // opcode(1) + parentReg iterIdx itemNameIdx idxNameIdx keyIdx bodyIdx depsIdx iterDepsIdx rowDepsIdx itemPopulatorIdx (10 operands)
+          pc += 11;
+          break;
+        }
+
+        case Opcode.REACTIVE_ASYNC: {
+          const parentReg = bytecode[pc + 1]!;
+          const promiseIdx = bytecode[pc + 2]!;
+          const aliasIdx = bytecode[pc + 3]!;
+          const bodyIdx = bytecode[pc + 4]!;
+          const fallbackIdx = bytecode[pc + 5]!;
+          const catchIdx = bytecode[pc + 6]!;
+          // BUG-115 fix: read aliasPopulatorIdx (operand 8) for AOT alias scope population.
+          const aliasPopulatorRawIdx = bytecode[pc + 8] ?? 0xFF;
+          const aliasPopulatorConst = aliasPopulatorRawIdx !== 0xFF ? constants[aliasPopulatorRawIdx] : null;
+
+          const parentNode = this.getRegister(parentReg);
+          const promiseExpr = constants[promiseIdx];
+          const alias = constants[aliasIdx] as string;
+          const bodyMod = constants[bodyIdx];
+          const fallbackMod = fallbackIdx !== 0xFF ? constants[fallbackIdx] : null;
+          const catchMod = catchIdx !== 0xFF ? constants[catchIdx] : null;
+
+          /** Populate child scope with the resolved async value (AOT alias populator preferred). */
+          const doPopulateAsync = (childScope: Record<string, any>, val: any): void => {
+            populateAsyncValue(childScope, alias, val, aliasPopulatorConst, this.declaredVars);
+          };
+
+          const rawPromise = evaluateExpression(promiseExpr, this.scope, this.declaredVars);
+          const boundaryId = DriftServerVM.nextAsyncId++;
+
+          if (this.isStreaming) {
+            parentNode.children.push({ type: 'comment', content: `drift-async:${boundaryId}`, children: [] });
+            if (fallbackMod) {
+              const childScope = Object.create(this.scope);
+              const subVm = new DriftServerVM();
+              subVm.parentVM = this;
+              subVm.isStreaming = true;
+              const subResult = subVm.execute(fallbackMod, { scope: childScope });
+              if (subResult) parentNode.children.push(subResult);
+            }
+            parentNode.children.push({ type: 'comment', content: `/drift-async:${boundaryId}`, children: [] });
+
+            this.asyncBoundaries.push({
+              id: boundaryId,
+              promise: rawPromise,
+              alias,
+              bodyMod,
+              fallbackMod,
+              catchMod,
+              scope: this.scope,
+              aliasPopulator: aliasPopulatorConst,
+              declaredVars: this.declaredVars,
+            });
+          } else {
+            if (rawPromise && typeof rawPromise.then === 'function') {
+              parentNode.children.push({ type: 'comment', content: `drift-async:${boundaryId}`, children: [] });
+              if (fallbackMod) {
+                const childScope = Object.create(this.scope);
+                const subVm = new DriftServerVM();
+                subVm.parentVM = this;
+                const subResult = subVm.execute(fallbackMod, { scope: childScope });
+                if (subResult) parentNode.children.push(subResult);
+              }
+              parentNode.children.push({ type: 'comment', content: `/drift-async:${boundaryId}`, children: [] });
+            } else {
+              parentNode.children.push({ type: 'comment', content: `drift-async:${boundaryId}`, children: [] });
+              const childScope = Object.create(this.scope);
+              doPopulateAsync(childScope, rawPromise);
+              const subVm = new DriftServerVM();
+              subVm.parentVM = this;
+              const subResult = subVm.execute(bodyMod, { scope: childScope });
+              if (subResult) parentNode.children.push(subResult);
+              parentNode.children.push({ type: 'comment', content: `/drift-async:${boundaryId}`, children: [] });
+            }
+          }
+          // opcode(1) + parentReg promiseIdx aliasIdx bodyIdx fallbackIdx catchIdx depsIdx aliasPopulatorIdx (8 operands)
+          pc += 9;
+          break;
+        }
+
+        default:
+          throw new Error(`DriftServerVM: Unknown Opcode ${opcode} at PC ${pc}`);
+      }
+    }
+
+    return this.getRegister(0);
+  } finally {
+    popActiveVM();
+  }
+}
+}
+
+
+function sanitizeRawContent(content: string, rawTag?: string): string {
+  if (!rawTag) return content;
+  const lower = rawTag.toLowerCase();
+  if (lower === 'script') {
+    return content.replace(/<\/script/gi, '<\\/script');
+  }
+  if (lower === 'style') {
+    return content.replace(/<\/style/gi, '<\\/style');
+  }
+  return content;
+}
+
+/**
+ * Serializes a ServerNode tree directly into an HTML string.
+ */
+export function serializeNode(node: ServerNode | string | null | undefined, isRawText = false, rawTag?: string): string {
+  if (!node) return '';
+  if (typeof node === 'string') return isRawText ? sanitizeRawContent(node, rawTag) : escapeHtml(node);
+  if (node.type === 'text') return isRawText ? sanitizeRawContent(node.content ?? '', rawTag) : escapeHtml(node.content ?? '');
+  if (node.type === 'comment') {
+    const safeContent = String(node.content ?? '')
+      .replace(/-->/g, '-- >')
+      .replace(/--!>/g, '--! >');
+    return `<!--${safeContent}-->`;
+  }
+  if (node.type === 'fragment') {
+    return node.children.map((c) => serializeNode(c, isRawText, rawTag)).join('');
+  }
+  if (node.type === 'element') {
+    const tag = node.tag!;
+    if (!tag || !VALID_TAG_NAME_REGEX.test(tag)) {
+      return '';
+    }
+    const isRaw = tag.toLowerCase() === 'script' || tag.toLowerCase() === 'style';
+    let attrsStr = '';
+    if (node.attrs && node.attrs.size > 0) {
+      for (const [k, v] of node.attrs.entries()) {
+        if (!VALID_ATTR_NAME_REGEX.test(k)) {
+          continue;
+        }
+        if (k === 'style' && (v === '' || v == null || v === false)) {
+          continue;
+        }
+        const isAriaOrData = k.startsWith('aria-') || k.startsWith('data-');
+        if (v === true) {
+          attrsStr += isAriaOrData ? ` ${k}="true"` : ` ${k}`;
+        } else if (v === false) {
+          if (isAriaOrData) {
+            attrsStr += ` ${k}="false"`;
+          }
+        } else if (v !== null && v !== undefined) {
+          attrsStr += ` ${k}="${escapeHtml(String(v))}"`;
+        }
+      }
+    }
+    const selfClosing = VOID_ELEMENTS.has(tag.toLowerCase());
+    if (selfClosing) {
+      return `<${tag}${attrsStr} />`;
+    }
+    const childrenStr = node.children.map((c) => serializeNode(c, isRaw, isRaw ? tag : undefined)).join('');
+    return `<${tag}${attrsStr}>${childrenStr}</${tag}>`;
+  }
+  return '';
+}
+
+/**
+ * Renders a compiled Drift component to an HTML string.
+ */
+export function renderToString(component: CompiledModule, options: SSRExecutionOptions = {}): string {
+  const vm = new DriftServerVM();
+  const rootNode = vm.execute(component, options);
+  return rootNode ? serializeNode(rootNode) : '';
+}
+
+/**
+ * Renders a compiled Drift component wrapped in an island container with hydration metadata.
+ */
+export function renderIslandToString(
+  islandName: string,
+  component: CompiledModule,
+  options: IslandRenderOptions = {}
+): string {
+  const rawTag = options.islandTag || 'div';
+  const tag = isValidHtmlTagName(rawTag) ? rawTag : 'div';
+  const trigger = options.trigger || 'idle';
+  let attrs = ` data-drift-island="${escapeHtml(islandName)}"`;
+  if (trigger) {
+    attrs += ` data-drift-trigger="${escapeHtml(trigger)}"`;
+  }
+  if (options.props && Object.keys(options.props).length > 0) {
+    attrs += ` data-drift-props="${escapeHtml(JSON.stringify(options.props))}"`;
+  }
+  if (options.timeout !== undefined) {
+    attrs += ` data-drift-timeout="${options.timeout}"`;
+  }
+  if (options.media) {
+    attrs += ` data-drift-media="${escapeHtml(options.media)}"`;
+  }
+  if (options.rootMargin) {
+    attrs += ` data-drift-root-margin="${escapeHtml(options.rootMargin)}"`;
+  }
+
+  const execScope = options.props
+    ? { ...options.scope, props: options.props, ...options.props }
+    : options.scope;
+
+  const innerHtml = renderToString(component, { ...options, scope: execScope });
+  return `<${tag}${attrs}>${innerHtml}</${tag}>`;
+}
+
+/**
+ * Renders a compiled Drift component to a WHATWG ReadableStream with Node.js .pipe() support.
+ */
+export function renderToStream(
+  component: CompiledModule,
+  options: StreamOptions = {}
+): DriftStream {
+  let isAborted = false;
+  let timerId: any = null;
+
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const encoder = new TextEncoder();
+
+      const pushChunk = (html: string) => {
+        if (isAborted) return;
+        controller.enqueue(encoder.encode(html));
+      };
+
+      const closeStream = () => {
+        if (isAborted) return;
+        if (timerId) clearTimeout(timerId);
+        try {
+          controller.close();
+        } catch (err) {
+          console.debug("[DriftJS SSR] Stream controller already closed:", err);
+        }
+        options.onAllReady?.();
+      };
+
+      try {
+        const vm = new DriftServerVM();
+        vm.isStreaming = true;
+        const rootNode = vm.execute(component, options);
+        let shellHtml = rootNode ? serializeNode(rootNode) : '';
+
+        const boundaries = vm.asyncBoundaries;
+
+        if (boundaries.length > 0) {
+          const nonceAttr = options.nonce ? ` nonce="${escapeHtml(options.nonce)}"` : '';
+          const swapScript = `<script${nonceAttr}>function __drift_swap(d,t){var e=document.getElementById(t);if(!e)return;var w=document.createTreeWalker(document.body,128,null),s=null,k=null;while(w.nextNode()){var c=w.currentNode;if(c.nodeValue==='drift-async:'+d)s=c;else if(c.nodeValue==='/drift-async:'+d){k=c;break;}}if(s&&k&&s.parentNode){var p=s.parentNode,r=s.nextSibling;while(r&&r!==k){var n=r.nextSibling;p.removeChild(r);r=n;}p.insertBefore(e.content,k);e.remove();}}</script>`;
+          shellHtml += swapScript;
+        }
+
+        pushChunk(shellHtml);
+        options.onShellReady?.();
+
+        if (boundaries.length === 0) {
+          closeStream();
+          return;
+        }
+
+        if (options.timeoutMs && options.timeoutMs > 0) {
+          timerId = setTimeout(() => {
+            if (!isAborted) {
+              const timeoutErr = new Error(`[DriftJS] renderToStream timed out after ${options.timeoutMs}ms`);
+              options.onError?.(timeoutErr);
+              closeStream();
+            }
+          }, options.timeoutMs);
+        }
+
+        let pendingCount = boundaries.length;
+
+        for (const boundary of boundaries) {
+          const { id, promise, alias, bodyMod, catchMod, scope, aliasPopulator, declaredVars } = boundary;
+          Promise.resolve(promise)
+            .then((resolvedVal) => {
+              if (isAborted) return;
+              const childScope = Object.create(scope);
+              populateAsyncValue(childScope, alias, resolvedVal, aliasPopulator, declaredVars);
+
+              const subVm = new DriftServerVM();
+              const resultNode = subVm.execute(bodyMod, { scope: childScope });
+              const bodyHtml = resultNode ? serializeNode(resultNode) : '';
+
+              const nonceAttr = options.nonce ? ` nonce="${escapeHtml(options.nonce)}"` : '';
+              const chunk = `<template id="drift-t-${id}">${bodyHtml}</template><script${nonceAttr}>__drift_swap("${id}","drift-t-${id}")</script>`;
+              pushChunk(chunk);
+            })
+            .catch((err) => {
+              if (isAborted) return;
+              options.onError?.(err);
+
+              if (catchMod) {
+                const childScope = Object.create(scope);
+                if (catchMod.errorVar) {
+                  setLoopVar(childScope, catchMod.errorVar, err);
+                }
+                const subVm = new DriftServerVM();
+                const resultNode = subVm.execute(catchMod.module, { scope: childScope });
+                const catchHtml = resultNode ? serializeNode(resultNode) : '';
+
+                const nonceAttr = options.nonce ? ` nonce="${escapeHtml(options.nonce)}"` : '';
+                const chunk = `<template id="drift-t-${id}">${catchHtml}</template><script${nonceAttr}>__drift_swap("${id}","drift-t-${id}")</script>`;
+                pushChunk(chunk);
+              }
+            })
+            .finally(() => {
+              pendingCount--;
+              if (pendingCount === 0) {
+                closeStream();
+              }
+            });
+        }
+      } catch (err) {
+        options.onError?.(err);
+        controller.error(err);
+      }
+    },
+    cancel(reason) {
+      isAborted = true;
+      if (timerId) clearTimeout(timerId);
+    },
+  });
+
+  const driftStream = stream as DriftStream;
+
+  driftStream.abort = (reason?: any) => {
+    isAborted = true;
+    if (timerId) clearTimeout(timerId);
+    try {
+      driftStream.cancel(reason);
+    } catch (err) {
+      console.debug("[DriftJS SSR] Stream abort cancel error:", err);
+    }
+  };
+
+  driftStream.pipe = function <T>(destination: T): T {
+    const reader = stream.getReader();
+    const dest = destination as any;
+
+    async function pump() {
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            if (typeof dest.end === 'function') {
+              dest.end();
+            }
+            break;
+          }
+          if (typeof dest.write === 'function') {
+            dest.write(Buffer.from(value));
+          }
+        }
+      } catch (err) {
+        if (typeof dest.destroy === 'function') {
+          dest.destroy(err);
+        }
+      }
+    }
+
+    pump();
+    return destination;
+  };
+
+  return driftStream;
+}
+

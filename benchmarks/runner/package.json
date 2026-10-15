@@ -1,0 +1,18 @@
+{
+  "name": "driftjs-benchmark-runner",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/cli.ts",
+    "bench": "tsx src/cli.ts",
+    "app": "pnpm --filter driftjs-benchmark-app dev",
+    "build": "pnpm --filter driftjs-benchmark-app build"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.3",
+    "playwright": "1.63.0",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2"
+  }
+}

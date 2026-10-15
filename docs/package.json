@@ -1,0 +1,29 @@
+{
+  "name": "driftjs-docs",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Official documentation site for DriftJS, built with Drift's own SSG meta-framework.",
+  "type": "module",
+  "scripts": {
+    "predev": "node ../scripts/assets/copy.js",
+    "dev": "drift-ssg dev",
+    "prebuild": "node ../scripts/assets/copy.js",
+    "build": "drift-ssg build",
+    "preview": "drift-ssg preview"
+  },
+  "dependencies": {
+    "@vercel/analytics": "^2.0.1",
+    "driftjs-compiler": "workspace:*",
+    "driftjs-dom": "workspace:*",
+    "driftjs-playground": "workspace:*",
+    "driftjs-router": "workspace:*",
+    "driftjs-shared": "workspace:*",
+    "driftjs-ssg": "workspace:*",
+    "driftjs-ssr": "workspace:*",
+    "driftjs-unplugin": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2",
+    "vite": "8.3.1"
+  }
+}

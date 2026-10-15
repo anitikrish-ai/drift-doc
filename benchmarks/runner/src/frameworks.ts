@@ -1,0 +1,57 @@
+import type { FrameworkDef } from './types.js';
+import { resolve } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
+const benchmarksRoot = resolve(__dirname, '../..');
+
+export const FRAMEWORKS: FrameworkDef[] = [
+  {
+    id: 'vanilla',
+    name: 'VanillaJS',
+    dir: resolve(benchmarksRoot, 'frameworks/vanilla'),
+    port: 5201,
+  },
+  {
+    id: 'drift',
+    name: 'DriftJS',
+    dir: resolve(benchmarksRoot, 'frameworks/drift'),
+    port: 5202,
+  },
+  {
+    id: 'react',
+    name: 'React',
+    dir: resolve(benchmarksRoot, 'frameworks/react'),
+    port: 5203,
+  },
+  {
+    id: 'vue',
+    name: 'Vue',
+    dir: resolve(benchmarksRoot, 'frameworks/vue'),
+    port: 5204,
+  },
+  {
+    id: 'solid',
+    name: 'SolidJS',
+    dir: resolve(benchmarksRoot, 'frameworks/solid'),
+    port: 5205,
+  },
+  {
+    id: 'svelte',
+    name: 'Svelte',
+    dir: resolve(benchmarksRoot, 'frameworks/svelte'),
+    port: 5206,
+  },
+  {
+    id: 'angular',
+    name: 'Angular',
+    dir: resolve(benchmarksRoot, 'frameworks/angular'),
+    port: 5207,
+  },
+  {
+    id: 'ember',
+    name: 'Ember',
+    dir: resolve(benchmarksRoot, 'frameworks/ember'),
+    port: 5208,
+  },
+];

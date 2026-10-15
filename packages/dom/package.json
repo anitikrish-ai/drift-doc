@@ -1,0 +1,45 @@
+{
+  "name": "driftjs-dom",
+  "version": "0.0.18",
+  "description": "High-performance register-based Virtual Machine and reconciler for client-side DOM rendering in DriftJS.",
+  "keywords": [
+    "driftjs",
+    "dom",
+    "client",
+    "virtual-machine",
+    "register-vm",
+    "reactivity",
+    "reconciler",
+    "hydration",
+    "ui"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "main": "./dist/index-cjs.js",
+  "module": "./dist/index-es.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "vite build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "driftjs-shared": "workspace:*"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index-es.js",
+      "require": "./dist/index-cjs.js",
+      "default": "./dist/index-es.js"
+    }
+  },
+  "devDependencies": {
+    "typescript": "7.0.2",
+    "vite": "8.3.1",
+    "vitest": "5.0.2"
+  }
+}

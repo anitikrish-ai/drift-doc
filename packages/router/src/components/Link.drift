@@ -1,0 +1,80 @@
+<script>
+  import { RouterContext } from '../router.js';
+  import { onUnmount } from 'driftjs-shared';
+
+  const router = RouterContext.inject();
+  let to = props.to || '/';
+  let replace = props.replace || false;
+  let target = props.target || '_self';
+  let rel = props.rel || '';
+  let customClass = props.class || '';
+  let label = props.label || props.title || '';
+  let currentPath = router && router.currentRoute ? router.currentRoute.path : '';
+
+  function getHref(targetTo, r) {
+    const val = targetTo || '/';
+    if (!r) {
+      return typeof val === 'string' ? val : (val && val.path ? val.path : '#');
+    }
+    return r.resolve(val).href;
+  }
+
+  function getActiveClass(targetTo, r, cClass, actClass, exactClass, _curr) {
+    const custom = cClass || '';
+    if (!r) return custom;
+    const val = targetTo || '/';
+    const resolved = r.resolve(val);
+    const targetPath = resolved.path;
+    const currPath = r.currentRoute.path;
+    const activeName = actClass || (r.options && r.options.linkActiveClass) || 'router-link-active';
+    const exactName = exactClass || (r.options && r.options.linkExactActiveClass) || 'router-link-exact-active';
+
+    if (currPath === targetPath) {
+      return (custom ? custom + ' ' : '') + activeName + ' ' + exactName;
+    } else if (targetPath !== '/' && (currPath.startsWith(targetPath.endsWith('/') ? targetPath : targetPath + '/'))) {
+      return (custom ? custom + ' ' : '') + activeName;
+    }
+    return custom;
+  }
+
+  if (router && typeof router.subscribe === 'function') {
+    const unsubscribe = router.subscribe(() => {
+      currentPath = router.currentRoute.path;
+      if (typeof __drift_mark_dirty__ === 'function') {
+        __drift_mark_dirty__('currentPath');
+      }
+    });
+    if (typeof onUnmount === 'function') {
+      onUnmount(() => {
+        unsubscribe();
+      });
+    }
+  }
+
+  function handleClick(e) {
+    if (e.defaultPrevented) return;
+    if (e.button !== 0) return;
+    const tgt = props.target || target;
+    if (tgt && tgt !== '_self') return;
+    if (e.metaKey || e.altKey || e.ctrlKey || e.shiftKey) return;
+
+    e.preventDefault();
+    if (!router) return;
+    const dest = props.to || to || '/';
+    if (props.replace || replace) {
+      router.replace(dest);
+    } else {
+      router.push(dest);
+    }
+  }
+</script>
+
+<a
+  href={getHref(props.to || to, router)}
+  class={getActiveClass(props.to || to, router, props.class || customClass, props.activeClass, props.exactActiveClass, currentPath)}
+  target={props.target || target}
+  rel={props.rel || rel}
+  onclick={handleClick}
+>
+  {props.label || props.title || label}
+</a>

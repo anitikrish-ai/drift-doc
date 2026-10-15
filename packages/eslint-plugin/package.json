@@ -1,0 +1,47 @@
+{
+  "name": "driftjs-eslint-plugin",
+  "version": "0.0.18",
+  "description": "ESLint plugin and parser for DriftJS (.drift) Single File Components.",
+  "keywords": [
+    "driftjs",
+    "eslint",
+    "eslint-plugin",
+    "linter",
+    "sfc"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "main": "./dist/index-cjs.js",
+  "module": "./dist/index-es.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index-es.js",
+      "require": "./dist/index-cjs.js",
+      "default": "./dist/index-es.js"
+    }
+  },
+  "scripts": {
+    "build": "vite build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "acorn": "8.18.0",
+    "acorn-walk": "8.3.5",
+    "driftjs-compiler": "workspace:*",
+    "driftjs-shared": "workspace:*"
+  },
+  "peerDependencies": {
+    "eslint": "10.11.0"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2",
+    "vite": "8.3.1",
+    "vitest": "5.0.2"
+  }
+}

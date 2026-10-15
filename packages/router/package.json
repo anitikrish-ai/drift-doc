@@ -1,0 +1,47 @@
+{
+  "name": "driftjs-router",
+  "version": "0.0.18",
+  "description": "Client-side SPA router for DriftJS with history, hash, and memory drivers, dynamic route parameters, nested routes/outlets, scroll restoration, and navigation guards.",
+  "keywords": [
+    "driftjs",
+    "router",
+    "spa",
+    "routing",
+    "virtual-machine",
+    "reactivity",
+    "navigation"
+  ],
+  "type": "module",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "main": "./dist/index-cjs.js",
+  "module": "./dist/index-es.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index-es.js",
+      "require": "./dist/index-cjs.js",
+      "default": "./dist/index-es.js"
+    }
+  },
+  "scripts": {
+    "build": "vite build",
+    "test": "vitest run"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "driftjs-dom": "workspace:*",
+    "driftjs-shared": "workspace:*",
+    "path-to-regexp": "8.4.2"
+  },
+  "devDependencies": {
+    "driftjs-compiler": "workspace:*",
+    "driftjs-unplugin": "workspace:*",
+    "typescript": "7.0.2",
+    "vite": "8.3.1",
+    "vitest": "5.0.2"
+  }
+}

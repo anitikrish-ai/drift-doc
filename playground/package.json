@@ -1,0 +1,31 @@
+{
+  "name": "driftjs-playground",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "dev": "vite",
+    "serve": "node server.js",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "acorn": "8.18.0",
+    "driftjs-compiler": "workspace:*",
+    "driftjs-dom": "workspace:*",
+    "driftjs-router": "workspace:*",
+    "driftjs-shared": "workspace:*",
+    "driftjs-ssr": "workspace:*",
+    "monaco-editor": "^0.57.0"
+  },
+  "devDependencies": {
+    "driftjs-unplugin": "workspace:*",
+    "typescript": "7.0.2",
+    "vite": "8.3.1"
+  }
+}

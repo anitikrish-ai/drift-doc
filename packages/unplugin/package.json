@@ -1,0 +1,70 @@
+{
+  "name": "driftjs-unplugin",
+  "version": "0.0.18",
+  "description": "Universal build-tool plugin for DriftJS (.drift) Single File Components supporting Vite, Rollup, Webpack, esbuild, and Rspack.",
+  "keywords": [
+    "driftjs",
+    "unplugin",
+    "vite-plugin",
+    "rollup-plugin",
+    "webpack-plugin",
+    "esbuild-plugin",
+    "rspack-plugin",
+    "compiler",
+    "aot"
+  ],
+  "type": "module",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "main": "./dist/index-cjs.js",
+  "module": "./dist/index-es.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index-es.js",
+      "require": "./dist/index-cjs.js",
+      "default": "./dist/index-es.js"
+    }
+  },
+  "scripts": {
+    "build": "vite build",
+    "test": "vitest run"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "driftjs-compiler": "workspace:*",
+    "unplugin": "^3.4.0"
+  },
+  "peerDependencies": {
+    "@rspack/core": "*",
+    "esbuild": "*",
+    "rollup": "*",
+    "vite": "*",
+    "webpack": "*"
+  },
+  "peerDependenciesMeta": {
+    "@rspack/core": {
+      "optional": true
+    },
+    "esbuild": {
+      "optional": true
+    },
+    "rollup": {
+      "optional": true
+    },
+    "vite": {
+      "optional": true
+    },
+    "webpack": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "typescript": "7.0.2",
+    "vite": "8.3.1",
+    "vitest": "5.0.2"
+  }
+}

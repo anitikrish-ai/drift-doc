@@ -1,0 +1,40 @@
+{
+  "name": "driftjs-shared",
+  "version": "0.0.18",
+  "description": "Shared utilities, Context API, scope resolution helpers, and runtime evaluators for DriftJS.",
+  "keywords": [
+    "driftjs",
+    "shared",
+    "context-api",
+    "scope",
+    "evaluator",
+    "utilities",
+    "reactivity"
+  ],
+  "type": "module",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "main": "./dist/index-cjs.js",
+  "module": "./dist/index-es.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index-es.js",
+      "require": "./dist/index-cjs.js",
+      "default": "./dist/index-es.js"
+    }
+  },
+  "scripts": {
+    "build": "vite build",
+    "test": "vitest run"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "7.0.2",
+    "vite": "8.3.1",
+    "vitest": "5.0.2"
+  }
+}

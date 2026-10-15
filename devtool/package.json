@@ -1,0 +1,34 @@
+{
+  "name": "devtool",
+  "description": "Browser DevTools extension for DriftJS register VM reactivity engine",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "prebuild": "node ../scripts/assets/copy.js",
+    "build": "pnpm run build:firefox && pnpm run build:chrome",
+    "build:firefox": "node ../scripts/assets/copy.js && TARGET=firefox vite build && node ../scripts/devtools/package.js firefox",
+    "build:chrome": "node ../scripts/assets/copy.js && TARGET=chrome vite build && node ../scripts/devtools/package.js chrome",
+    "package": "node ../scripts/devtools/package.js",
+    "test": "vitest run",
+    "preview": "vite preview",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "driftjs-eslint-plugin": "workspace:*",
+    "driftjs-prettier-plugin": "workspace:*",
+    "driftjs-unplugin": "workspace:*",
+    "eslint": "10.11.0",
+    "prettier": "3.9.9",
+    "typescript": "7.0.2",
+    "vite": "8.3.1"
+  },
+  "dependencies": {
+    "driftjs-compiler": "workspace:*",
+    "driftjs-dom": "workspace:*",
+    "driftjs-shared": "workspace:*"
+  }
+}

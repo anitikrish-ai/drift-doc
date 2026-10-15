@@ -1,15 +1,46 @@
 {
-  "name": "driftjs-docs",
-  "version": "1.0.0",
+  "name": "driftjs-monorepo",
+  "description": "Register VM-based reactivity engine and AOT compiler for high-performance web applications.",
+  "keywords": [
+    "driftjs",
+    "compiler",
+    "virtual-machine",
+    "register-vm",
+    "reactivity",
+    "ssr",
+    "dom",
+    "vite-plugin"
+  ],
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vitepress dev docs",
-    "build": "vitepress build docs",
-    "preview": "vitepress preview docs"
+    "copy-assets": "node scripts/assets/copy.js",
+    "prebuild": "node scripts/assets/copy.js",
+    "build": "node scripts/assets/copy.js && pnpm -r build",
+    "test": "vitest run",
+    "bench": "pnpm --filter driftjs-benchmark-runner start",
+    "bench:perf": "./benchmarks/run-benchmarks.sh",
+    "typecheck": "tsc --noEmit",
+    "publish": "pnpm -r publish --no-git-checks --access public",
+    "clean-assets": "node scripts/assets/clean.js",
+    "postpublish": "node scripts/assets/clean.js",
+    "docs:dev": "pnpm --filter driftjs-docs dev",
+    "docs:build": "pnpm --filter driftjs-docs build",
+    "docs:preview": "pnpm --filter driftjs-docs preview",
+    "test:e2e": "playwright test",
+    "patch": "node scripts/version/patch.js",
+    "minor": "node scripts/version/minor.js",
+    "major": "node scripts/version/major.js"
   },
   "devDependencies": {
-    "vitepress": "^1.6.3",
-    "vue": "^3.5.16"
+    "@playwright/test": "^1.63.0",
+    "@vitest/browser": "5.0.2",
+    "@vitest/browser-playwright": "5.0.2",
+    "@vitest/coverage-v8": "5.0.2",
+    "@vitest/ui": "5.0.2",
+    "playwright": "1.63.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.1",
+    "vitest": "5.0.2"
   }
 }

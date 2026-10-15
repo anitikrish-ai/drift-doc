@@ -1,0 +1,29 @@
+{
+  "name": "driftjs-template",
+  "description": "Starter template for DriftJS CSR and SSR applications",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "driftjs-eslint-plugin": "^0.0.18",
+    "driftjs-prettier-plugin": "^0.0.18",
+    "driftjs-unplugin": "^0.0.18",
+    "eslint": "10.11.0",
+    "prettier": "3.9.9",
+    "typescript": "7.0.2",
+    "vite": "8.3.1"
+  },
+  "dependencies": {
+    "driftjs-compiler": "^0.0.18",
+    "driftjs-dom": "^0.0.18",
+    "driftjs-ssr": "^0.0.18"
+  }
+}

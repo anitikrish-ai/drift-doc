@@ -1,0 +1,99 @@
+<script>
+  if (typeof window !== 'undefined' && !window.__lt) {
+    window.__lt = true;
+    (function () {
+      var root = document.documentElement, st = null, cancelAnim = function () {}, timer = 0, fadeT = 0;
+      var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var $$ = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
+      var clamp = function (v) { return Math.max(0, Math.min(100, v)); };
+      var cur = function (b) { return parseFloat(b.style.getPropertyValue('--complete')) || 0; };
+      var setC = function (b, v) { b.style.setProperty('--complete', clamp(v)); };
+      var flag = function (b, on) { b.dataset.active = b.dataset.pressed = on ? 'true' : 'false'; };
+
+      // SVG filters made with the SVG parser (correct namespace); ids prefixed to avoid collisions
+      if (!document.getElementById('lt-defs')) {
+        var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        s.id = 'lt-defs'; s.setAttribute('class', 'sr-only'); s.setAttribute('aria-hidden', 'true');
+        s.innerHTML = '<defs><filter id="lt-goo"><feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="b"/><feColorMatrix in="b" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 14 -10" result="m"/><feComposite in="m" operator="atop"/></filter><filter id="lt-remove-black" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 -255 -255 -255 0 1" result="bp"/><feMorphology in="bp" operator="dilate" radius="0.5" result="sm"/><feComposite in="SourceGraphic" in2="sm" operator="out"/></filter></defs>';
+        document.body.appendChild(s);
+      }
+
+      // Theme: saved choice, else system preference. Dark = knob on the right.
+      var saved = null; try { saved = localStorage.getItem('drift-theme'); } catch (e) {}
+      root.classList.toggle('light', saved === 'light' || (!saved && matchMedia('(prefers-color-scheme: light)').matches));
+      function commit(dark) {
+        root.classList.add('theme-fade'); clearTimeout(fadeT); fadeT = setTimeout(function () { root.classList.remove('theme-fade'); }, 500);
+        root.classList.toggle('light', !dark);
+        try { localStorage.setItem('drift-theme', dark ? 'dark' : 'light'); } catch (e) {}
+        if (navigator.vibrate) navigator.vibrate(8); // same frame as the flip
+      }
+      function sync() {
+        var dark = !root.classList.contains('light');
+        $$('.liquid-toggle').forEach(function (b) { if (!st || st.b !== b) { b.setAttribute('aria-pressed', dark); setC(b, dark ? 100 : 0); } });
+      }
+      sync(); requestAnimationFrame(sync); addEventListener('DOMContentLoaded', sync); addEventListener('load', sync);
+
+      // Critically damped spring: starts from the live value and inherits velocity (interruptible)
+      function spring(from, to, v, cb, done, resp) {
+        var w = 6.2832 / resp, x = from - to, vel = v, last = performance.now(), id;
+        (function step(t) {
+          var dt = Math.min((t - last) / 1000, 0.032); last = t;
+          vel += (-2 * w * vel - w * w * x) * dt; x += vel * dt; cb(to + x);
+          if (Math.abs(x) > 0.1 || Math.abs(vel) > 0.5) id = requestAnimationFrame(step); else { cb(to); if (done) done(); }
+        })(last);
+        return function () { cancelAnimationFrame(id); };
+      }
+      function go(b, target, v) {
+        commit(target === 100);
+        cancelAnim = spring(cur(b), target, v, function (x) { setC(b, x); }, function () {
+          setTimeout(function () { flag(b, false); b.setAttribute('aria-pressed', target === 100); }, 50);
+        }, reduced ? 0.12 : 0.25);
+      }
+      function tap(b) { // bubble swells first, then the knob slides (as in the skill)
+        var target = b.getAttribute('aria-pressed') === 'true' ? 0 : 100;
+        flag(b, true); timer = setTimeout(function () { go(b, target, 0); }, reduced ? 0 : 180);
+      }
+
+      document.addEventListener('pointerdown', function (e) {
+        var b = e.target.closest && e.target.closest('.liquid-toggle'); if (!b || e.button > 0) return;
+        clearTimeout(timer); cancelAnim(); // grab it mid-flight
+        b.setPointerCapture(e.pointerId); flag(b, true);
+        st = { b: b, x0: e.clientX, last: e.clientX, lt: performance.now(), v: 0, c0: cur(b), drag: false, travel: b.offsetWidth * 0.4 };
+      });
+      document.addEventListener('pointermove', function (e) {
+        if (!st) return;
+        var dx = e.clientX - st.x0, now = performance.now();
+        if (!st.drag && Math.abs(dx) > 6) st.drag = true; // hysteresis
+        if (!st.drag) return;
+        setC(st.b, st.c0 + (dx / st.travel) * 100);
+        st.b.style.setProperty('--delta', Math.min(Math.abs(e.clientX - st.last), 12));
+        st.v = 0.7 * st.v + 0.3 * ((e.clientX - st.last) / Math.max(now - st.lt, 1)) * 1000;
+        st.last = e.clientX; st.lt = now;
+      });
+      function end(e, cancelled) {
+        if (!st) return; var s = st, b = s.b; st = null; b.style.setProperty('--delta', 0);
+        if (cancelled) { setC(b, s.c0); flag(b, false); return; }
+        if (!s.drag) return tap(b);
+        var vC = (s.v / s.travel) * 100, proj = cur(b) + vC * 0.12; // velocity decides, not just position
+        go(b, proj >= 50 ? 100 : 0, vC);
+      }
+      document.addEventListener('pointerup', function (e) { end(e, false); });
+      document.addEventListener('pointercancel', function (e) { end(e, true); });
+      document.addEventListener('click', function (e) { // keyboard only (Enter / Space); pointer is handled above
+        var b = e.target.closest && e.target.closest('.liquid-toggle');
+        if (b && e.detail === 0) { clearTimeout(timer); cancelAnim(); tap(b); }
+      });
+    })();
+  }
+</script>
+
+<span class="lt" data-mapped="false" data-bounce="true">
+  <button type="button" class="liquid-toggle" aria-pressed="true" aria-label="Dark mode" title="Dark mode" style="--complete: 100; --hue: 222;">
+    <span class="knockout"><span class="indicator indicator--masked"><span class="mask"></span></span></span>
+    <span class="indicator__liquid">
+      <span class="shadow"></span>
+      <span class="wrapper"><span class="liquids"><span class="liquid__shadow"></span><span class="liquid__track"></span></span></span>
+      <span class="cover"></span>
+    </span>
+  </button>
+</span>

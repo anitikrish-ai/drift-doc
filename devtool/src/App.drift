@@ -1,0 +1,712 @@
+<script>
+  let activeTab = 'scope';
+  let connected = false;
+  let driftVersion = '';
+  let vms = [];
+  let filteredVms = [];
+  let selectedVmId = '';
+  let selectedVm = null;
+  let events = [];
+  let searchQuery = '';
+
+  // State Time-Travel / History
+  let snapshots = [];
+  let selectedSnapshotIndex = -1;
+
+  // Interactive VM Stepper
+  let stepperPc = -1;
+  let stepperIndex = 0;
+
+  // Performance Profiling
+  let totalFlushes = 0;
+  let avgFlushDuration = '0.00';
+  let totalPatches = 0;
+  let totalReconciles = 0;
+
+  export function setBridge(bridge) {
+    window.__drift_bridge__ = bridge;
+  }
+
+  function getBridge() {
+    return window.__drift_bridge__;
+  }
+
+  export function handleDetected(ver, count) {
+    connected = true;
+    driftVersion = ver;
+  }
+
+  function updateFilteredVms() {
+    const q = (searchQuery || '').toLowerCase().trim();
+    if (!q) {
+      filteredVms = vms;
+    } else {
+      filteredVms = vms.filter(v =>
+        (v.name && v.name.toLowerCase().includes(q)) ||
+        (v.id && v.id.toLowerCase().includes(q))
+      );
+    }
+  }
+
+  export function handleTree(newVms) {
+    connected = true;
+    vms = newVms || [];
+    updateFilteredVms();
+
+    if (vms.length > 0) {
+      if (!selectedVmId || !vms.find(v => v.id === selectedVmId)) {
+        selectedVmId = vms[0].id;
+        selectedVm = vms[0];
+      } else {
+        selectedVm = vms.find(v => v.id === selectedVmId);
+      }
+    } else {
+      selectedVm = null;
+    }
+  }
+
+  export function handleVMUpdated(vmId, newScope, dirtyVars) {
+    if (selectedVm && selectedVm.id === vmId) {
+      selectedVm.scope = newScope;
+      selectedVm = { ...selectedVm };
+    }
+    const idx = vms.findIndex(v => v.id === vmId);
+    if (idx !== -1) {
+      vms[idx].scope = newScope;
+      vms = [...vms];
+      updateFilteredVms();
+    }
+  }
+
+  export function handleVMMounted(vm) {
+    connected = true;
+    const exists = vms.findIndex(v => v.id === vm.id);
+    if (exists === -1) {
+      vms = [...vms, vm];
+      updateFilteredVms();
+      if (!selectedVm) {
+        selectedVmId = vm.id;
+        selectedVm = vm;
+      }
+    }
+  }
+
+  export function handleVMUnmounted(vmId) {
+    vms = vms.filter(v => v.id !== vmId);
+    updateFilteredVms();
+    if (selectedVmId === vmId) {
+      selectedVmId = vms.length > 0 ? vms[0].id : '';
+      selectedVm = vms.length > 0 ? vms[0] : null;
+    }
+  }
+
+  function recalculateStats() {
+    let fCount = 0;
+    let fDur = 0;
+    let pCount = 0;
+    let rCount = 0;
+    for (let i = 0; i < events.length; i++) {
+      const ev = events[i];
+      if (ev.type === 'flush') {
+        fCount++;
+        if (ev.duration) fDur += ev.duration;
+        if (ev.patchCount) pCount += ev.patchCount;
+      } else if (ev.type === 'lis-reconcile') {
+        rCount++;
+      }
+    }
+    totalFlushes = fCount;
+    avgFlushDuration = fCount > 0 ? (fDur / fCount).toFixed(2) : '0.00';
+    totalPatches = pCount;
+    totalReconciles = rCount;
+  }
+
+  export function handleEvent(event) {
+    events = [event, ...events.slice(0, 49)];
+
+    // Record time-travel snapshot on dirty event
+    if (event.type === 'dirty' && event.scopeSnapshot) {
+      const snap = {
+        index: snapshots.length,
+        timestamp: event.timestamp,
+        vmId: event.vmId,
+        scope: event.scopeSnapshot,
+        dirtyVar: event.varName || 'state',
+      };
+      snapshots = [...snapshots, snap];
+      selectedSnapshotIndex = snapshots.length - 1;
+    }
+
+    recalculateStats();
+  }
+
+  function selectVM(vm) {
+    selectedVmId = vm.id;
+    selectedVm = vm;
+    stepperPc = -1;
+    stepperIndex = 0;
+    const b = getBridge();
+    if (b) {
+      b.highlightVM(vm.id);
+    }
+  }
+
+  function onTreeItemMouseEnter(vm) {
+    const b = getBridge();
+    if (b) {
+      b.highlightVM(vm.id);
+    }
+  }
+
+  function onTreeItemMouseLeave() {
+    const b = getBridge();
+    if (b) {
+      b.unhighlightVM();
+    }
+  }
+
+  function setTab(tab) {
+    activeTab = tab;
+  }
+
+  function refreshTree() {
+    const b = getBridge();
+    if (b) {
+      b.refreshTree();
+    }
+  }
+
+  function clearEvents() {
+    events = [];
+    snapshots = [];
+    selectedSnapshotIndex = -1;
+    recalculateStats();
+  }
+
+  function handleSearchInput(e) {
+    searchQuery = e.target.value;
+    updateFilteredVms();
+  }
+
+  function clearSearch() {
+    searchQuery = '';
+    updateFilteredVms();
+  }
+
+  function handleScopeEdit(varName, e) {
+    const rawVal = e.target.value;
+    let parsedVal = rawVal;
+    try {
+      parsedVal = JSON.parse(rawVal);
+    } catch {
+      parsedVal = rawVal;
+    }
+    const b = getBridge();
+    if (b && selectedVmId) {
+      b.updateScopeVar(selectedVmId, varName, parsedVal);
+    }
+  }
+
+  // Time-Travel Handlers
+  function seekSnapshot(idx) {
+    if (idx >= 0 && idx < snapshots.length) {
+      selectedSnapshotIndex = idx;
+      const snap = snapshots[idx];
+      const b = getBridge();
+      if (b && selectedVmId && snap && snap.scope) {
+        b.restoreScope(selectedVmId, snap.scope);
+      }
+    }
+  }
+
+  function stepTimeTravelPrev() {
+    if (selectedSnapshotIndex > 0) {
+      seekSnapshot(selectedSnapshotIndex - 1);
+    }
+  }
+
+  function stepTimeTravelNext() {
+    if (selectedSnapshotIndex < snapshots.length - 1) {
+      seekSnapshot(selectedSnapshotIndex + 1);
+    }
+  }
+
+  function restoreLive() {
+    if (snapshots.length > 0) {
+      seekSnapshot(snapshots.length - 1);
+    }
+  }
+
+  // VM Stepper Handlers
+  function stepInstructionNext() {
+    if (!selectedVm || !selectedVm.bytecode || selectedVm.bytecode.length === 0) return;
+    if (stepperPc === -1) {
+      stepperIndex = 0;
+      stepperPc = selectedVm.bytecode[0].pc;
+    } else if (stepperIndex < selectedVm.bytecode.length - 1) {
+      stepperIndex++;
+      stepperPc = selectedVm.bytecode[stepperIndex].pc;
+    }
+  }
+
+  function stepInstructionPrev() {
+    if (!selectedVm || !selectedVm.bytecode || selectedVm.bytecode.length === 0) return;
+    if (stepperIndex > 0) {
+      stepperIndex--;
+      stepperPc = selectedVm.bytecode[stepperIndex].pc;
+    } else {
+      stepperIndex = 0;
+      stepperPc = -1;
+    }
+  }
+
+  function resetStepper() {
+    stepperIndex = 0;
+    stepperPc = -1;
+  }
+</script>
+
+<div class="dt-container">
+  <!-- Top Navigation Header -->
+  <header class="dt-header">
+    <div class="dt-header-left">
+      <div class="dt-brand">
+        <svg class="dt-brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <circle cx="12" cy="12" r="9"></circle>
+          <path d="M12 7v5l3 3"></path>
+        </svg>
+        <span>Drift DevTools</span>
+      </div>
+
+      <nav class="dt-tabs">
+        <button class={activeTab === 'tree' ? 'dt-tab-btn active' : 'dt-tab-btn'} onclick={() => setTab('tree')}>
+          Components
+        </button>
+        <button class={activeTab === 'scope' ? 'dt-tab-btn active' : 'dt-tab-btn'} onclick={() => setTab('scope')}>
+          Scope & State
+        </button>
+        <button class={activeTab === 'isa' ? 'dt-tab-btn active' : 'dt-tab-btn'} onclick={() => setTab('isa')}>
+          Registers & ISA
+        </button>
+        <button class={activeTab === 'timeline' ? 'dt-tab-btn active' : 'dt-tab-btn'} onclick={() => setTab('timeline')}>
+          Timeline ({events.length})
+        </button>
+      </nav>
+    </div>
+
+    <div class="dt-header-right">
+      @if (!connected) {
+        <span class="dt-badge dt-badge-yellow">Connecting...</span>
+      }
+
+      <span class="dt-badge dt-badge-green">{vms.length} VMs</span>
+
+      <button class="dt-btn-icon" onclick={refreshTree} title="Refresh component tree">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.19"></path>
+        </svg>
+        <span>Refresh</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Split Layout -->
+  <div class="dt-main">
+    <!-- Left Sidebar: Component Tree & Real-Time Filter -->
+    <aside class="dt-sidebar">
+      <div class="dt-sidebar-header">
+        <span class="dt-sidebar-title">VM Instances</span>
+        @if (vms.length > 0) {
+          <span class="dt-tag-badge">{filteredVms.length} / {vms.length}</span>
+        }
+      </div>
+
+      <!-- Real-Time Component Filter Input -->
+      <div class="dt-sidebar-search">
+        <input
+          class="dt-search-input"
+          type="text"
+          placeholder="Filter by name or ID..."
+          value={searchQuery}
+          oninput={handleSearchInput}
+        />
+        @if (searchQuery) {
+          <button class="dt-search-clear" onclick={clearSearch} title="Clear filter">&times;</button>
+        }
+      </div>
+
+      <div class="dt-tree-list">
+        @if (vms.length === 0) {
+          <div class="dt-empty-state" style="padding: 24px 12px;">
+            <div class="dt-empty-title">No Drift VMs</div>
+            <div style="font-size: 11px; color: var(--dt-text-dim);">Navigate to a page running DriftJS</div>
+          </div>
+        } @else if (filteredVms.length === 0) {
+          <div class="dt-empty-state" style="padding: 24px 12px;">
+            <div class="dt-empty-title">No matching VMs</div>
+            <div style="font-size: 11px; color: var(--dt-text-dim);">No components match "{searchQuery}"</div>
+          </div>
+        } @else {
+          @for (vm, idx) in filteredVms {
+            <div
+              class={selectedVmId === vm.id ? 'dt-tree-item selected' : 'dt-tree-item'}
+              onclick={() => selectVM(vm)}
+              onmouseenter={() => onTreeItemMouseEnter(vm)}
+              onmouseleave={onTreeItemMouseLeave}
+            >
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span class="dt-tag-name">&lt;{vm.name}&gt;</span>
+                <span class="dt-tag-badge">{vm.id}</span>
+              </div>
+              <span style="font-size: 10px; color: var(--dt-text-muted);">{vm.registers.length} regs</span>
+            </div>
+          }
+        }
+      </div>
+    </aside>
+
+    <!-- Right Panel Content -->
+    <main class="dt-content">
+      @if (selectedVm) {
+        @if (activeTab === 'scope') {
+          <!-- Scope & State Inspector Card -->
+          <div class="dt-card">
+            <div class="dt-card-header">
+              <span class="dt-card-title">Component Scope Variables</span>
+              <span class="dt-tag-badge">{Object.keys(selectedVm.scope).length} variables</span>
+            </div>
+            <div class="dt-card-body">
+              @if (Object.keys(selectedVm.scope).length === 0) {
+                <div style="color: var(--dt-text-muted); font-size: 11px;">Scope is empty</div>
+              } @else {
+                <table class="dt-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 140px;">Variable</th>
+                      <th>Value</th>
+                      <th style="width: 180px;">Live Edit</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (varName, vIdx) in Object.keys(selectedVm.scope) {
+                      <tr>
+                        <td style="color: var(--dt-accent); font-weight: 600;">{varName}</td>
+                        <td style="color: var(--dt-text); word-break: break-all;">
+                          {typeof selectedVm.scope[varName] === 'object' ? JSON.stringify(selectedVm.scope[varName]) : String(selectedVm.scope[varName])}
+                        </td>
+                        <td>
+                          <input
+                            class="dt-table-input"
+                            value={typeof selectedVm.scope[varName] === 'object' ? JSON.stringify(selectedVm.scope[varName]) : String(selectedVm.scope[varName])}
+                            onchange={(e) => handleScopeEdit(varName, e)}
+                          />
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              }
+            </div>
+          </div>
+
+          <!-- Reactive Bindings Card -->
+          <div class="dt-card">
+            <div class="dt-card-header">
+              <span class="dt-card-title">Reactive Variable Bindings (PC Locations)</span>
+              <span class="dt-tag-badge">{selectedVm.reactiveBindings.length} tracked</span>
+            </div>
+            <div class="dt-card-body">
+              @if (selectedVm.reactiveBindings.length === 0) {
+                <div style="color: var(--dt-text-muted); font-size: 11px;">No reactive bindings</div>
+              } @else {
+                <table class="dt-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 160px;">Variable</th>
+                      <th>Bytecode PC Positions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (b, bIdx) in selectedVm.reactiveBindings {
+                      <tr>
+                        <td style="color: var(--dt-yellow); font-weight: 600;">{b.varName}</td>
+                        <td style="color: var(--dt-purple);">[ {b.pcs.join(', ')} ]</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              }
+            </div>
+          </div>
+
+          <!-- Reactive Regions Card -->
+          <div class="dt-card">
+            <div class="dt-card-header">
+              <span class="dt-card-title">Reactive Regions (conditional &amp; loop anchors)</span>
+              <span class="dt-tag-badge">{selectedVm.reactiveRegions.length} regions</span>
+            </div>
+            <div class="dt-card-body">
+              @if (selectedVm.reactiveRegions.length === 0) {
+                <div style="color: var(--dt-text-muted); font-size: 11px;">No active reactive regions</div>
+              } @else {
+                <table class="dt-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 100px;">Region Type</th>
+                      <th>Dependencies</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (r, rIdx) in selectedVm.reactiveRegions {
+                      <tr>
+                        <td style="color: var(--dt-green); font-weight: 600;">@{r.type}</td>
+                        <td style="color: var(--dt-text-dim);">[ {r.deps.join(', ')} ]</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              }
+            </div>
+          </div>
+        } @else if (activeTab === 'isa') {
+          <!-- Bytecode Disassembly Stream with Interactive VM Stepper -->
+          <div class="dt-card">
+            <div class="dt-card-header">
+              <span class="dt-card-title">Bytecode Instruction Stream &amp; Stepper</span>
+              <span class="dt-tag-badge">{selectedVm.bytecode.length} instructions</span>
+            </div>
+
+            <!-- Interactive VM Stepper Controls -->
+            <div class="dt-stepper-bar">
+              <div class="dt-stepper-info">
+                @if (stepperPc === -1) {
+                  <span style="color: var(--dt-text-dim);">Live Execution (Click Step Next to start stepper)</span>
+                } @else {
+                  <span style="color: var(--dt-accent); font-weight: 600;">
+                    Instruction {stepperIndex + 1}/{selectedVm.bytecode.length} (PC: 0x{stepperPc.toString(16).padStart(2, '0').toUpperCase()})
+                  </span>
+                }
+              </div>
+              <div class="dt-stepper-actions">
+                <button class="dt-btn-icon" onclick={stepInstructionPrev} title="Step to previous instruction">
+                  <span>⏮ Prev</span>
+                </button>
+                <button class="dt-btn-icon" onclick={stepInstructionNext} title="Step to next instruction">
+                  <span>⏭ Next</span>
+                </button>
+                <button class="dt-btn-icon" onclick={resetStepper} title="Reset stepper to live">
+                  <span>🔄 Reset</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="dt-card-body">
+              @if (selectedVm.bytecode.length === 0) {
+                <div style="color: var(--dt-text-muted); font-size: 11px;">No instructions</div>
+              } @else {
+                @for (instr, iIdx) in selectedVm.bytecode {
+                  <div class={stepperPc === instr.pc ? 'dt-instruction-row active-pc' : 'dt-instruction-row'}>
+                    <span class="dt-pc">
+                      @if (stepperPc === instr.pc) {
+                        <span class="dt-pc-arrow">➔ </span>
+                      }
+                      0x{instr.pc.toString(16).padStart(2, '0').toUpperCase()}
+                    </span>
+                    <span class="dt-mnemonic">{instr.mnemonic}</span>
+                    <span class="dt-operands">{instr.operands.join(' ')}</span>
+                    <span class="dt-annotation">{instr.annotation}</span>
+                  </div>
+                }
+              }
+            </div>
+          </div>
+
+          <!-- Registers Snapshot r0..r255 -->
+          <div class="dt-card">
+            <div class="dt-card-header">
+              <span class="dt-card-title">Registers Snapshot (Active Registers)</span>
+              <span class="dt-tag-badge">{selectedVm.registers.length} occupied</span>
+            </div>
+            <div class="dt-card-body">
+              <div class="dt-registers-grid">
+                @for (reg, rIdx) in selectedVm.registers {
+                  <div class="dt-register-box">
+                    <span class="dt-reg-index">r{reg.index}</span>
+                    <span class="dt-tag-badge" style="margin-right: 4px;">{reg.type}</span>
+                    <span class="dt-reg-val">{reg.preview}</span>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+
+          <!-- Constants Pool -->
+          <div class="dt-card">
+            <div class="dt-card-header">
+              <span class="dt-card-title">Constant Pool</span>
+              <span class="dt-tag-badge">{selectedVm.constants.length} entries</span>
+            </div>
+            <div class="dt-card-body">
+              <table class="dt-table">
+                <thead>
+                  <tr>
+                    <th style="width: 80px;">Index</th>
+                    <th>Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (constVal, cIdx) in selectedVm.constants {
+                    <tr>
+                      <td style="color: var(--dt-text-muted);">c[{cIdx}]</td>
+                      <td style="color: var(--dt-text);">{typeof constVal === 'object' ? JSON.stringify(constVal) : String(constVal)}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        } @else if (activeTab === 'timeline') {
+          <!-- Performance Profiler Metrics Grid -->
+          <div class="dt-perf-grid">
+            <div class="dt-perf-card">
+              <span class="dt-perf-num" style="color: var(--dt-accent);">{avgFlushDuration} ms</span>
+              <span class="dt-perf-label">Avg Flush Latency</span>
+            </div>
+            <div class="dt-perf-card">
+              <span class="dt-perf-num" style="color: var(--dt-green);">{totalFlushes}</span>
+              <span class="dt-perf-label">Microtask Flushes</span>
+            </div>
+            <div class="dt-perf-card">
+              <span class="dt-perf-num" style="color: var(--dt-yellow);">{totalPatches}</span>
+              <span class="dt-perf-label">DOM Patches</span>
+            </div>
+            <div class="dt-perf-card">
+              <span class="dt-perf-num" style="color: var(--dt-purple);">{totalReconciles}</span>
+              <span class="dt-perf-label">LIS Reconciles</span>
+            </div>
+          </div>
+
+          <!-- State Time-Travel / History Scrubber Card -->
+          <div class="dt-card">
+            <div class="dt-card-header">
+              <span class="dt-card-title">State Time-Travel &amp; History</span>
+              <span class="dt-tag-badge">{snapshots.length} historical states</span>
+            </div>
+            <div class="dt-card-body">
+              @if (snapshots.length === 0) {
+                <div style="color: var(--dt-text-muted); font-size: 11px;">
+                  No scope mutations recorded yet for &lt;{selectedVm.name}&gt;. Interact with the application to record state history.
+                </div>
+              } @else {
+                <div class="dt-timetravel-controls">
+                  <div class="dt-timetravel-info">
+                    <span>State {selectedSnapshotIndex + 1} of {snapshots.length}</span>
+                    @if (snapshots[selectedSnapshotIndex]) {
+                      <span class="dt-tag-badge" style="color: var(--dt-yellow); margin-left: 8px;">
+                        variable: {snapshots[selectedSnapshotIndex].dirtyVar}
+                      </span>
+                    }
+                  </div>
+                  <div class="dt-timetravel-slider-row">
+                    <input
+                      class="dt-slider"
+                      type="range"
+                      min="0"
+                      max={snapshots.length - 1}
+                      value={selectedSnapshotIndex}
+                      oninput={(e) => seekSnapshot(Number(e.target.value))}
+                    />
+                  </div>
+                  <div class="dt-timetravel-actions">
+                    <button class="dt-btn-icon" onclick={stepTimeTravelPrev} title="Step back 1 state">
+                      <span>⏮ Step Prev</span>
+                    </button>
+                    <button class="dt-btn-icon" onclick={stepTimeTravelNext} title="Step forward 1 state">
+                      <span>⏭ Step Next</span>
+                    </button>
+                    <button class="dt-btn-icon dt-btn-accent" onclick={restoreLive} title="Restore present state">
+                      <span>🔴 Restore Present</span>
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Timeline Event Log -->
+          <div class="dt-card">
+            <div class="dt-card-header">
+              <span class="dt-card-title">Reactivity Event Log</span>
+              <button class="dt-btn-icon" onclick={clearEvents}>Clear</button>
+            </div>
+            <div class="dt-card-body">
+              @if (events.length === 0) {
+                <div style="color: var(--dt-text-muted); font-size: 11px;">No reactivity events captured yet</div>
+              } @else {
+                <div class="dt-timeline-list">
+                  @for (evt, eIdx) in events {
+                    <div class="dt-timeline-item">
+                      <span class="dt-timeline-time">{new Date(evt.timestamp).toLocaleTimeString()}</span>
+                      <span class={evt.type === 'dirty' ? 'dt-timeline-badge dt-badge-dirty' : evt.type === 'mount' ? 'dt-timeline-badge dt-badge-mount' : evt.type === 'flush' ? 'dt-timeline-badge dt-badge-flush' : 'dt-timeline-badge dt-badge-region'}>
+                        {evt.type}
+                      </span>
+                      <span style="color: var(--dt-accent); font-weight: 600;">&lt;{evt.vmName}&gt;</span>
+                      <span style="color: var(--dt-text); flex: 1;">{evt.details}</span>
+                      @if (evt.duration) {
+                        <span class="dt-tag-badge" style="color: var(--dt-green);">{evt.duration.toFixed(2)}ms</span>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        } @else {
+          <!-- Tree / Overview Tab -->
+          <div class="dt-card">
+            <div class="dt-card-header">
+              <span class="dt-card-title">Component Overview: &lt;{selectedVm.name}&gt;</span>
+              <span class="dt-badge dt-badge-green">{selectedVm.id}</span>
+            </div>
+            <div class="dt-card-body">
+              <table class="dt-table">
+                <tbody>
+                  <tr>
+                    <td style="width: 140px; color: var(--dt-text-muted);">VM ID</td>
+                    <td>{selectedVm.id}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: var(--dt-text-muted);">DOM Tag</td>
+                    <td>&lt;{selectedVm.name}&gt;</td>
+                  </tr>
+                  <tr>
+                    <td style="color: var(--dt-text-muted);">Parent VM</td>
+                    <td>{selectedVm.parentId ? selectedVm.parentId : 'None (Root VM)'}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: var(--dt-text-muted);">Declared Variables</td>
+                    <td>{selectedVm.declaredVars.join(', ') || 'None'}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: var(--dt-text-muted);">Occupied Registers</td>
+                    <td>{selectedVm.registers.length} / 256</td>
+                  </tr>
+                  <tr>
+                    <td style="color: var(--dt-text-muted);">Reactive Regions</td>
+                    <td>{selectedVm.reactiveRegions.length}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        }
+      } @else {
+        <div class="dt-empty-state">
+          <div class="dt-empty-icon">⚡</div>
+          <div class="dt-empty-title">Select a Component</div>
+          <div>Choose a Drift VM instance from the left sidebar to inspect its scope, registers, and reactivity.</div>
+        </div>
+      }
+    </main>
+  </div>
+</div>

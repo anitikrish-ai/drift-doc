@@ -1,0 +1,109 @@
+/**
+ * Register-based Bytecode Opcodes supported by DriftJS.
+ */
+export enum Opcode {
+  RETURN = 0x00,
+  CREATE_ELEMENT = 0x01,
+  CREATE_TEXT = 0x02,
+  CREATE_COMMENT = 0x03,
+  APPEND_CHILD = 0x04,
+  SET_ATTR = 0x05,
+  CREATE_FRAGMENT = 0x06,
+  INTERPOLATE_TEXT = 0x07,
+  /** Execute a script-block AST stored in the constant pool to initialise the component scope. */
+  EXEC_SCRIPT = 0x0C,
+  /** Reactive conditional block: re-renders its subtree when deps change. */
+  REACTIVE_IF = 0x0D,
+  /**
+   * Reactive loop block.
+   * Operands: parentReg iterIdx itemNameIdx idxNameIdx keyIdx bodyIdx depsIdx iterDepsIdx rowDepsIdx
+   * - iterDepsIdx: constant-pool index of string[] listing variables that determine the iterable
+   *   (a change triggers full LIS reconciliation).
+   * - rowDepsIdx: constant-pool index of string[] listing outer-scope variables used inside row
+   *   expressions (a change triggers per-row fast-patch via patchRowsForChangedVars).
+   */
+  REACTIVE_FOR = 0x0E,
+  /** Mounts a child Single File Component (SFC) into a register. */
+  MOUNT_COMPONENT = 0x0F,
+  /** Reactive async block: suspends and streams subtree when promise resolves or rejects. */
+  REACTIVE_ASYNC = 0x10,
+  /** Reactive switch block: evaluates discriminant once and renders matching case. */
+  REACTIVE_SWITCH = 0x11,
+}
+
+/**
+ * Describes a case branch in the constant pool table for REACTIVE_SWITCH.
+ */
+export interface SwitchCaseSpec {
+  readonly testIdx: number;
+  readonly modIdx: number;
+}
+
+/**
+ * Describes which bytecode PC positions reference a declared variable,
+ * enabling the runtime to re-evaluate bindings when state changes.
+ */
+export interface ReactiveBinding {
+  readonly variable: string;
+  readonly positions: readonly number[];
+}
+
+export interface ImportSpec {
+  readonly localName: string;
+  readonly source: string;
+  readonly isDefault: boolean;
+  readonly isNamespace?: boolean | undefined;
+  readonly isSideEffect?: boolean | undefined;
+  readonly importedName?: string | undefined;
+}
+
+/**
+ * Describes a computed / derived reactive variable and its state dependencies.
+ */
+export interface DerivedBinding {
+  readonly name: string;
+  readonly deps: readonly string[];
+  readonly exprIdx: number;
+}
+
+/**
+ * Describes a reactive side-effect and its state dependencies.
+ */
+export interface EffectBinding {
+  readonly deps: readonly string[];
+  readonly exprIdx: number;
+}
+
+/**
+ * Output module emitted by DriftGenerator.
+ */
+export interface CompiledModule {
+  readonly bytecode: readonly number[] | Uint32Array;
+  readonly constants: readonly any[];
+  readonly reactiveBindings?: readonly ReactiveBinding[];
+  /** All variable names declared in the component's <script> block. Used by the runtime for change-detection. */
+  readonly declaredVars?: readonly string[];
+  /** Derived/computed state variables declared with derive(...) */
+  readonly derived?: readonly DerivedBinding[];
+  /** Reactive side-effects declared with effect(...) */
+  readonly effects?: readonly EffectBinding[];
+  /** Import statements declared in the component's <script> block. */
+  readonly imports?: readonly ImportSpec[];
+  /** Component scope containing imported components or scope bindings. */
+  readonly scope?: Record<string, any>;
+}
+
+/**
+ * Cached row record used by the keyed list reconciler.
+ */
+export interface ItemRecord {
+  key: unknown;
+  nodes: any[];
+  childRegions?: any[] | undefined;
+  itemVal: unknown;
+  indexVal: number;
+  registers?: any[] | undefined;
+  scope?: Record<string, any> | undefined;
+  lastValues?: Map<number, any> | undefined;
+}
+

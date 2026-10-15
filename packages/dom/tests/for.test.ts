@@ -1,0 +1,679 @@
+import { describe, it, expect, vi } from 'vitest';
+import { DriftClientVM } from '../src/index.js';
+import { compile } from '../../compiler/src/index.js';
+
+describe('DriftJS @for Directive Integration Suite', () => {
+
+  it('renders initial list and reactively adds items on button click', () => {
+    const src = `
+      <script>
+        let items = [
+          { id: 1, text: 'Item 1' },
+          { id: 2, text: 'Item 2' }
+        ];
+        function addItem() {
+          items = items.concat({ id: 3, text: 'Item 3' });
+        }
+      </script>
+      <div>
+        <button id="add-btn" onclick={addItem}>Add</button>
+        <ul id="list">
+          @for item in items key item.id {
+            <li id={"item-" + item.id}>{item.text}</li>
+          }
+        </ul>
+      </div>
+    `;
+
+    const mod = compile(src);
+    const vm = new DriftClientVM();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = vm.execute(mod, { document });
+    if (root) container.appendChild(root);
+
+    expect(container.querySelectorAll('li')).toHaveLength(2);
+    expect(container.querySelector('#item-1')?.textContent).toBe('Item 1');
+    expect(container.querySelector('#item-2')?.textContent).toBe('Item 2');
+
+    const btn = container.querySelector('#add-btn') as HTMLButtonElement;
+    btn.click();
+
+    expect(container.querySelectorAll('li')).toHaveLength(3);
+    expect(container.querySelector('#item-3')?.textContent).toBe('Item 3');
+
+    document.body.removeChild(container);
+  });
+
+  it('reactively removes items and cleans up DOM nodes', () => {
+    const src = `
+      <script>
+        let items = [
+          { id: 10, name: 'Alice' },
+          { id: 20, name: 'Bob' },
+          { id: 30, name: 'Charlie' }
+        ];
+        function removeBob() {
+          items = items.filter(i => i.id !== 20);
+        }
+      </script>
+      <div>
+        <button id="remove-btn" onclick={removeBob}>Remove Bob</button>
+        <ul>
+          @for item in items key item.id {
+            <li class="user-row">{item.name}</li>
+          }
+        </ul>
+      </div>
+    `;
+
+    const mod = compile(src);
+    const vm = new DriftClientVM();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = vm.execute(mod, { document });
+    if (root) container.appendChild(root);
+
+    const rowsBefore = container.querySelectorAll('.user-row');
+    expect(rowsBefore).toHaveLength(3);
+    expect(rowsBefore[1]?.textContent).toBe('Bob');
+
+    const btn = container.querySelector('#remove-btn') as HTMLButtonElement;
+    btn.click();
+
+    const rowsAfter = container.querySelectorAll('.user-row');
+    expect(rowsAfter).toHaveLength(2);
+    expect(rowsAfter[0]?.textContent).toBe('Alice');
+    expect(rowsAfter[1]?.textContent).toBe('Charlie');
+
+    document.body.removeChild(container);
+  });
+
+  it('preserves DOM node identity across keyed row swaps (LIS reconciler)', () => {
+    const src = `
+      <script>
+        let rows = [
+          { id: 1, label: 'First' },
+          { id: 2, label: 'Second' },
+          { id: 3, label: 'Third' }
+        ];
+        function swap() {
+          const next = rows.slice();
+          const tmp = next[0];
+          next[0] = next[1];
+          next[1] = tmp;
+          rows = next;
+        }
+      </script>
+      <div>
+        <button id="swap-btn" onclick={swap}>Swap</button>
+        <table id="tbl">
+          <tbody>
+            @for row in rows key row.id {
+              <tr data-id={row.id}><td>{row.label}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    const mod = compile(src);
+    const vm = new DriftClientVM();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = vm.execute(mod, { document });
+    if (root) container.appendChild(root);
+
+    const rowsBefore = Array.from(container.querySelectorAll('tr'));
+    const row1 = rowsBefore[0]!;
+    const row2 = rowsBefore[1]!;
+    const row3 = rowsBefore[2]!;
+
+    const btn = container.querySelector('#swap-btn') as HTMLButtonElement;
+    btn.click();
+
+    const rowsAfter = Array.from(container.querySelectorAll('tr'));
+    expect(rowsAfter[0]).toBe(row2);
+    expect(rowsAfter[1]).toBe(row1);
+    expect(rowsAfter[2]).toBe(row3);
+
+    document.body.removeChild(container);
+  });
+
+  it('supports unkeyed loops with strict index fallback', () => {
+    const src = `
+      <script>
+        let fruits = ['Apple', 'Banana', 'Cherry'];
+        function updateBanana() {
+          const next = fruits.slice();
+          next[1] = 'Blueberry';
+          fruits = next;
+        }
+      </script>
+      <div>
+        <button id="btn-update" onclick={updateBanana}>Update</button>
+        <ul id="fruit-list">
+          @for fruit in fruits {
+            <li>{fruit}</li>
+          }
+        </ul>
+      </div>
+    `;
+
+    const mod = compile(src);
+    const vm = new DriftClientVM();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = vm.execute(mod, { document });
+    if (root) container.appendChild(root);
+
+    expect(container.querySelectorAll('li')[1]?.textContent).toBe('Banana');
+
+    const btn = container.querySelector('#btn-update') as HTMLButtonElement;
+    btn.click();
+
+    expect(container.querySelectorAll('li')[1]?.textContent).toBe('Blueberry');
+
+    document.body.removeChild(container);
+  });
+
+  it('binds item and index variables in @for loop header', () => {
+    const src = `
+      <script>
+        let tasks = ['Design', 'Develop', 'Deploy'];
+      </script>
+      <div>
+        <ul>
+          @for (task, idx) in tasks key task {
+            <li>{idx + 1}. {task}</li>
+          }
+        </ul>
+      </div>
+    `;
+
+    const mod = compile(src);
+    const vm = new DriftClientVM();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = vm.execute(mod, { document });
+    if (root) container.appendChild(root);
+
+    const items = container.querySelectorAll('li');
+    expect(items).toHaveLength(3);
+    expect(items[0]?.textContent).toBe('1. Design');
+    expect(items[1]?.textContent).toBe('2. Develop');
+    expect(items[2]?.textContent).toBe('3. Deploy');
+
+    document.body.removeChild(container);
+  });
+
+  it('handles transitions between populated list and empty list', () => {
+    const src = `
+      <script>
+        let items = [1, 2, 3];
+        function clear() { items = []; }
+        function populate() { items = [4, 5]; }
+      </script>
+      <div>
+        <button id="clear-btn" onclick={clear}>Clear</button>
+        <button id="pop-btn" onclick={populate}>Populate</button>
+        <div id="wrapper">
+          @for n in items {
+            <span>{n}</span>
+          }
+        </div>
+      </div>
+    `;
+
+    const mod = compile(src);
+    const vm = new DriftClientVM();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = vm.execute(mod, { document });
+    if (root) container.appendChild(root);
+
+    expect(container.querySelectorAll('span')).toHaveLength(3);
+
+    (container.querySelector('#clear-btn') as HTMLButtonElement).click();
+    expect(container.querySelectorAll('span')).toHaveLength(0);
+
+    (container.querySelector('#pop-btn') as HTMLButtonElement).click();
+    expect(container.querySelectorAll('span')).toHaveLength(2);
+    expect(container.querySelectorAll('span')[0]?.textContent).toBe('4');
+
+    document.body.removeChild(container);
+  });
+
+  it('correctly moves items to the tail of a keyed list when refNode is null (BUG-008)', () => {
+    const src = `
+      <script>
+        let items = [
+          { id: 'a', text: 'A' },
+          { id: 'b', text: 'B' },
+          { id: 'c', text: 'C' }
+        ];
+        function moveHeadToTail() {
+          items = [
+            { id: 'b', text: 'B' },
+            { id: 'c', text: 'C' },
+            { id: 'a', text: 'A' }
+          ];
+        }
+      </script>
+      <div>
+        <button id="move-btn" onclick={moveHeadToTail}>Move</button>
+        <ul>
+          @for item in items key item.id {
+            <li id={"node-" + item.id}>{item.text}</li>
+          }
+        </ul>
+      </div>
+    `;
+
+    const mod = compile(src);
+    const vm = new DriftClientVM();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = vm.execute(mod, { document });
+    if (root) container.appendChild(root);
+
+    let lis = container.querySelectorAll('li');
+    expect(lis).toHaveLength(3);
+    expect(lis[0]?.textContent).toBe('A');
+    expect(lis[1]?.textContent).toBe('B');
+    expect(lis[2]?.textContent).toBe('C');
+
+    (container.querySelector('#move-btn') as HTMLButtonElement).click();
+
+    lis = container.querySelectorAll('li');
+    expect(lis).toHaveLength(3);
+    expect(lis[0]?.textContent).toBe('B');
+    expect(lis[1]?.textContent).toBe('C');
+    expect(lis[2]?.textContent).toBe('A');
+
+    document.body.removeChild(container);
+  });
+
+  it('preserves row DOM element and TextNode identity during in-place item updates via persistent register frames', () => {
+    const src = `
+      <script>
+        let items = [
+          { id: 1, text: 'Item 1' },
+          { id: 2, text: 'Item 2' }
+        ];
+        function updateFirstItem() {
+          items = [
+            { id: 1, text: 'Item 1 - Modified' },
+            { id: 2, text: 'Item 2' }
+          ];
+        }
+      </script>
+      <div>
+        <button id="update-btn" onclick={updateFirstItem}>Update</button>
+        <ul>
+          @for item in items key item.id {
+            <li id={"item-" + item.id}><span class="label">{item.text}</span></li>
+          }
+        </ul>
+      </div>
+    `;
+
+    const mod = compile(src);
+    const vm = new DriftClientVM();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = vm.execute(mod, { document });
+    if (root) container.appendChild(root);
+
+    const li1Before = container.querySelector('#item-1')!;
+    const span1Before = li1Before.querySelector('.label')!;
+    const textNode1Before = span1Before.firstChild!;
+
+    expect(textNode1Before.nodeValue).toBe('Item 1');
+
+    (container.querySelector('#update-btn') as HTMLButtonElement).click();
+
+    const li1After = container.querySelector('#item-1')!;
+    const span1After = li1After.querySelector('.label')!;
+    const textNode1After = span1After.firstChild!;
+
+    expect(textNode1After.nodeValue).toBe('Item 1 - Modified');
+    // Verify exact DOM node and TextNode reference identity — zero reconstruction!
+    expect(li1After).toBe(li1Before);
+    expect(span1After).toBe(span1Before);
+    expect(textNode1After).toBe(textNode1Before);
+
+    document.body.removeChild(container);
+  });
+
+  it('fast-patches row dynamic attributes and classes in O(1) via pinned row registers', () => {
+    const src = `
+      <script>
+        let items = [
+          { id: 1, name: 'User 1' },
+          { id: 2, name: 'User 2' },
+          { id: 3, name: 'User 3' }
+        ];
+        let selectedId = 1;
+        function selectUser3() {
+          selectedId = 3;
+        }
+      </script>
+      <div>
+        <button id="select-btn" onclick={selectUser3}>Select 3</button>
+        <ul>
+          @for item in items key item.id {
+            <li id={"user-" + item.id} class={item.id === selectedId ? 'active' : ''}>{item.name}</li>
+          }
+        </ul>
+      </div>
+    `;
+
+    const mod = compile(src);
+    const vm = new DriftClientVM();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = vm.execute(mod, { document });
+    if (root) container.appendChild(root);
+
+    const initialRows = Array.from(container.querySelectorAll('li'));
+    expect(initialRows).toHaveLength(3);
+    expect(initialRows[0]?.getAttribute('class')).toBe('active');
+    expect(initialRows[2]?.getAttribute('class')).toBe('');
+
+    (container.querySelector('#select-btn') as HTMLButtonElement).click();
+
+    const updatedRows = Array.from(container.querySelectorAll('li'));
+    expect(updatedRows[0]?.getAttribute('class')).toBe('');
+    expect(updatedRows[2]?.getAttribute('class')).toBe('active');
+
+    // All row elements maintain strict DOM reference identity
+    for (let i = 0; i < 3; i++) {
+      expect(updatedRows[i]).toBe(initialRows[i]);
+    }
+
+    document.body.removeChild(container);
+  });
+
+  it('bypasses reconcileKeyedList and mutates only affected DOM nodes when inner dependency changes', () => {
+    const updateRowSpy = vi.spyOn(DriftClientVM.prototype, 'updateRowRegisters');
+
+    const src = `
+      <script>
+        let items = [
+          { id: 1, name: 'Alpha' },
+          { id: 2, name: 'Beta' },
+          { id: 3, name: 'Gamma' }
+        ];
+        let selectedId = 1;
+        function selectTwo() {
+          selectedId = 2;
+        }
+      </script>
+      <div>
+        <button id="select-2" onclick={selectTwo}>Select 2</button>
+        <ul>
+          @for item in items key item.id {
+            <li class={item.id === selectedId ? 'selected' : ''}>
+              <span>{item.name}</span>
+            </li>
+          }
+        </ul>
+      </div>
+    `;
+
+    const mod = compile(src);
+    const vm = new DriftClientVM();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = vm.execute(mod, { document });
+    if (root) container.appendChild(root);
+
+    updateRowSpy.mockClear();
+
+    const itemsBefore = Array.from(container.querySelectorAll('li'));
+    const textNodesBefore = Array.from(container.querySelectorAll('li span')).map(s => s.firstChild);
+
+    expect(itemsBefore[0]?.className).toBe('selected');
+    expect(itemsBefore[1]?.className).toBe('');
+
+    // Trigger selection change (only selectedId changes, not items array)
+    (container.querySelector('#select-2') as HTMLButtonElement).click();
+
+    // Reconciler's updateRowRegisters MUST NOT be called!
+    expect(updateRowSpy).toHaveBeenCalledTimes(0);
+
+    const itemsAfter = Array.from(container.querySelectorAll('li'));
+    const textNodesAfter = Array.from(container.querySelectorAll('li span')).map(s => s.firstChild);
+
+    // Only class attributes changed
+    expect(itemsAfter[0]?.className).toBe('');
+    expect(itemsAfter[1]?.className).toBe('selected');
+    expect(itemsAfter[2]?.className).toBe('');
+
+    // Text nodes are completely untouched (exact same DOM TextNode references)
+    expect(textNodesAfter[0]).toBe(textNodesBefore[0]);
+    expect(textNodesAfter[1]).toBe(textNodesBefore[1]);
+    expect(textNodesAfter[2]).toBe(textNodesBefore[2]);
+
+    updateRowSpy.mockRestore();
+    document.body.removeChild(container);
+  });
+
+  it('warns when duplicate keys are encountered without generating fake __dup_ keys', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const src = `
+      <script>
+        let items = [
+          { id: 1, text: 'First 1' },
+          { id: 1, text: 'Duplicate 1' },
+          { id: 2, text: 'Second' }
+        ];
+      </script>
+      <ul>
+        @for item in items key item.id {
+          <li>{item.text}</li>
+        }
+      </ul>
+    `;
+
+    const mod = compile(src);
+    const vm = new DriftClientVM();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = vm.execute(mod, { document });
+    if (root) container.appendChild(root);
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Duplicate key "1" detected in @for loop')
+    );
+
+    const lis = container.querySelectorAll('li');
+    expect(lis).toHaveLength(3);
+    expect(lis[0]?.textContent).toBe('First 1');
+    expect(lis[1]?.textContent).toBe('Duplicate 1');
+    expect(lis[2]?.textContent).toBe('Second');
+
+    warnSpy.mockRestore();
+    document.body.removeChild(container);
+  });
+
+  it('preserves child DOM node identity and child element state during keyed row patch (no wipe)', () => {
+    const src = `
+      <script>
+        let items = [
+          { id: 1, text: 'Item 1' },
+          { id: 2, text: 'Item 2' }
+        ];
+        function updateItemOne() {
+          items = [
+            { id: 1, text: 'Item 1 Updated' },
+            { id: 2, text: 'Item 2' }
+          ];
+        }
+      </script>
+      <div>
+        <button id="update-btn" onclick={updateItemOne}>Update</button>
+        <ul>
+          @for item in items key item.id {
+            <li class="row">
+              <span class="label">{item.text}</span>
+              <input class="row-input" />
+            </li>
+          }
+        </ul>
+      </div>
+    `;
+
+    const mod = compile(src);
+    const vm = new DriftClientVM();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = vm.execute(mod, { document });
+    if (root) container.appendChild(root);
+
+    const firstLi = container.querySelector('li')!;
+    const firstSpan = container.querySelector('.label')!;
+    const firstInput = container.querySelector('.row-input') as HTMLInputElement;
+
+    // Simulate user typing into input inside the row
+    firstInput.value = 'user typed text';
+
+    (container.querySelector('#update-btn') as HTMLButtonElement).click();
+
+    const updatedLi = container.querySelector('li')!;
+    const updatedSpan = container.querySelector('.label')!;
+    const updatedInput = container.querySelector('.row-input') as HTMLInputElement;
+
+    // Node identities must be strictly preserved — NO wipe and rebuild!
+    expect(updatedLi).toBe(firstLi);
+    expect(updatedSpan).toBe(firstSpan);
+    expect(updatedInput).toBe(firstInput);
+
+    // Dynamic text is updated in-place
+    expect(updatedSpan.textContent).toBe('Item 1 Updated');
+
+    // User state in input was NOT destroyed/reset
+    expect(updatedInput.value).toBe('user typed text');
+
+    document.body.removeChild(container);
+  });
+
+  describe('BUG-0: Scope Isolation in @for Loops', () => {
+    it('does NOT overwrite parent scope variable with plain identifier loop item', () => {
+      const src = `
+        <script>
+          let item = 'outer-item';
+          let items = ['a', 'b', 'c'];
+        </script>
+        <div>
+          <div id="parent-before">{item}</div>
+          <ul>
+            @for item in items {
+              <li class="row">{item}</li>
+            }
+          </ul>
+          <div id="parent-after">{item}</div>
+        </div>
+      `;
+
+      const mod = compile(src);
+      const vm = new DriftClientVM();
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      const root = vm.execute(mod, { document });
+      if (root) container.appendChild(root);
+
+      expect(container.querySelector('#parent-before')?.textContent).toBe('outer-item');
+      expect(container.querySelector('#parent-after')?.textContent).toBe('outer-item');
+      expect(vm.scope.item).toBe('outer-item');
+
+      const rows = container.querySelectorAll('.row');
+      expect(rows).toHaveLength(3);
+      expect(rows[0]?.textContent).toBe('a');
+      expect(rows[1]?.textContent).toBe('b');
+      expect(rows[2]?.textContent).toBe('c');
+
+      document.body.removeChild(container);
+    });
+
+    it('does NOT overwrite parent scope variable with destructured loop item', () => {
+      const src = `
+        <script>
+          let name = 'parent-name';
+          let users = [
+            { id: 1, name: 'Alice' },
+            { id: 2, name: 'Bob' }
+          ];
+        </script>
+        <div>
+          <span id="parent-name">{name}</span>
+          <ul>
+            @for { id, name } in users {
+              <li class="user-row">{id}: {name}</li>
+            }
+          </ul>
+          <span id="parent-name-after">{name}</span>
+        </div>
+      `;
+
+      const mod = compile(src);
+      const vm = new DriftClientVM();
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      const root = vm.execute(mod, { document });
+      if (root) container.appendChild(root);
+
+      expect(container.querySelector('#parent-name')?.textContent).toBe('parent-name');
+      expect(container.querySelector('#parent-name-after')?.textContent).toBe('parent-name');
+      expect(vm.scope.name).toBe('parent-name');
+
+      const rows = container.querySelectorAll('.user-row');
+      expect(rows).toHaveLength(2);
+      expect(rows[0]?.textContent).toBe('1: Alice');
+      expect(rows[1]?.textContent).toBe('2: Bob');
+
+      document.body.removeChild(container);
+    });
+
+    it('does NOT overwrite parent scope variable with loop index variable', () => {
+      const src = `
+        <script>
+          let idx = 999;
+          let list = ['x', 'y'];
+        </script>
+        <div>
+          <span id="outer-idx">{idx}</span>
+          <ul>
+            @for (val, idx) in list {
+              <li class="idx-row">{idx}-{val}</li>
+            }
+          </ul>
+          <span id="outer-idx-after">{idx}</span>
+        </div>
+      `;
+
+      const mod = compile(src);
+      const vm = new DriftClientVM();
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      const root = vm.execute(mod, { document });
+      if (root) container.appendChild(root);
+
+      expect(container.querySelector('#outer-idx')?.textContent).toBe('999');
+      expect(container.querySelector('#outer-idx-after')?.textContent).toBe('999');
+      expect(vm.scope.idx).toBe(999);
+
+      const rows = container.querySelectorAll('.idx-row');
+      expect(rows).toHaveLength(2);
+      expect(rows[0]?.textContent).toBe('0-x');
+      expect(rows[1]?.textContent).toBe('1-y');
+
+      document.body.removeChild(container);
+    });
+  });
+});
+
+
+

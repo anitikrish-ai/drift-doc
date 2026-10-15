@@ -1,0 +1,205 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "DriftJS",
+  "scopeName": "text.html.drift",
+  "patterns": [
+    { "include": "#script-tag" },
+    { "include": "#style-tag" },
+    { "include": "#drift-directives" },
+    { "include": "#drift-interpolations" },
+    { "include": "#html-comments" },
+    { "include": "#html-tags" },
+    { "include": "#html-operators" },
+    { "include": "#html-entities" }
+  ],
+  "repository": {
+    "script-tag": {
+      "begin": "(?i)(<)(script)(?=\\s|>|$)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.html" },
+        "2": { "name": "entity.name.tag.html" }
+      },
+      "end": "(?i)(</)(script)(>)",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.html" },
+        "2": { "name": "entity.name.tag.html" },
+        "3": { "name": "punctuation.definition.tag.end.html" }
+      },
+      "patterns": [
+        { "include": "#tag-attributes" },
+        {
+          "begin": "(>)",
+          "beginCaptures": {
+            "1": { "name": "punctuation.definition.tag.end.html" }
+          },
+          "end": "(?=</script>)",
+          "patterns": [
+            { "include": "source.js" },
+            { "include": "source.ts" }
+          ]
+        }
+      ]
+    },
+    "style-tag": {
+      "begin": "(?i)(<)(style)(?=\\s|>|$)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.html" },
+        "2": { "name": "entity.name.tag.html" }
+      },
+      "end": "(?i)(</)(style)(>)",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.html" },
+        "2": { "name": "entity.name.tag.html" },
+        "3": { "name": "punctuation.definition.tag.end.html" }
+      },
+      "patterns": [
+        { "include": "#tag-attributes" },
+        {
+          "begin": "(>)",
+          "beginCaptures": {
+            "1": { "name": "punctuation.definition.tag.end.html" }
+          },
+          "end": "(?=</style>)",
+          "patterns": [
+            { "include": "source.css" }
+          ]
+        }
+      ]
+    },
+    "drift-directives": {
+      "patterns": [
+        {
+          "name": "meta.directive.drift",
+          "begin": "(@(if|else\\s+if|else|for|switch|case|default|async|fallback|catch))\\b",
+          "beginCaptures": {
+            "1": { "name": "keyword.control.directive.drift" }
+          },
+          "end": "(?<=\\})|(?=@(?:if|else\\s+if|else|for|switch|case|default|async|fallback|catch)\\b)",
+          "patterns": [
+            {
+              "begin": "\\G",
+              "end": "(?=\\{)",
+              "patterns": [
+                { "include": "source.js" }
+              ]
+            },
+            {
+              "begin": "\\{",
+              "beginCaptures": {
+                "0": { "name": "punctuation.section.block.begin.drift" }
+              },
+              "end": "\\}",
+              "endCaptures": {
+                "0": { "name": "punctuation.section.block.end.drift" }
+              },
+              "patterns": [
+                { "include": "$self" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "drift-interpolations": {
+      "begin": "\\{",
+      "beginCaptures": {
+        "0": { "name": "punctuation.section.embedded.begin.js" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.section.embedded.end.js" }
+      },
+      "name": "meta.embedded.line.js",
+      "patterns": [
+        { "include": "#nested-braces" },
+        { "include": "source.js" }
+      ]
+    },
+    "nested-braces": {
+      "begin": "\\{",
+      "beginCaptures": {
+        "0": { "name": "punctuation.section.embedded.begin.js" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.section.embedded.end.js" }
+      },
+      "patterns": [
+        { "include": "#nested-braces" },
+        { "include": "source.js" }
+      ]
+    },
+    "html-comments": {
+      "begin": "<!--",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.comment.html" }
+      },
+      "end": "-->",
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.comment.html" }
+      },
+      "name": "comment.block.html"
+    },
+    "html-tags": {
+      "begin": "(</?)([a-zA-Z0-9_-]+)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.html" },
+        "2": { "name": "entity.name.tag.html" }
+      },
+      "end": "(/?>)",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.end.html" }
+      },
+      "patterns": [
+        { "include": "#drift-interpolations" },
+        { "include": "#tag-attributes" }
+      ]
+    },
+    "tag-attributes": {
+      "patterns": [
+        {
+          "name": "entity.other.attribute-name.html",
+          "match": "[a-zA-Z0-9_:-]+"
+        },
+        {
+          "begin": "=",
+          "beginCaptures": {
+            "0": { "name": "punctuation.separator.key-value.html" }
+          },
+          "end": "(?<=\\}|\"|')|(?=\\s|/>|>)",
+          "patterns": [
+            { "include": "#drift-interpolations" },
+            {
+              "begin": "\"",
+              "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.html" } },
+              "end": "\"",
+              "endCaptures": { "0": { "name": "punctuation.definition.string.end.html" } },
+              "name": "string.quoted.double.html",
+              "patterns": [
+                { "include": "#drift-interpolations" }
+              ]
+            },
+            {
+              "begin": "'",
+              "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.html" } },
+              "end": "'",
+              "endCaptures": { "0": { "name": "punctuation.definition.string.end.html" } },
+              "name": "string.quoted.single.html",
+              "patterns": [
+                { "include": "#drift-interpolations" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "html-operators": {
+      "match": ">|<",
+      "name": "punctuation.definition.tag.html"
+    },
+    "html-entities": {
+      "match": "&(#?[a-zA-Z0-9]+);",
+      "name": "constant.character.entity.html"
+    }
+  }
+}

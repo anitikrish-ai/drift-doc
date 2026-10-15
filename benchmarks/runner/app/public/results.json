@@ -1,0 +1,480 @@
+{
+  "timestamp": "2026-09-21T13:02:46.693Z",
+  "tables": [
+    {
+      "category": "cpu",
+      "title": "1. CPU Benchmarks (Duration in ms)",
+      "headers": [
+        "Metric / Benchmark",
+        "Unit",
+        "VanillaJS",
+        "SolidJS",
+        "Angular",
+        "Svelte",
+        "Vue",
+        "DriftJS",
+        "React",
+        "Ember"
+      ],
+      "rows": [
+        {
+          "id": "01_run1k",
+          "name": "01. Create 1,000 rows",
+          "description": "Creates 1,000 table rows upon clicking #run.",
+          "unit": "ms",
+          "values": {
+            "vanilla": 156.27,
+            "drift": 188.27,
+            "react": 176.53,
+            "vue": 177.07,
+            "solid": 147.2,
+            "svelte": 208.53,
+            "angular": 190.4,
+            "ember": 322.13
+          },
+          "factors": {
+            "vanilla": 1.06,
+            "drift": 1.28,
+            "react": 1.2,
+            "vue": 1.2,
+            "solid": 1,
+            "svelte": 1.42,
+            "angular": 1.29,
+            "ember": 2.19
+          }
+        },
+        {
+          "id": "02_replace1k",
+          "name": "02. Replace 1,000 rows",
+          "description": "Replaces all 1,000 rows with 1,000 new rows.",
+          "unit": "ms",
+          "values": {
+            "vanilla": 162.13,
+            "drift": 200.53,
+            "react": 196.27,
+            "vue": 180.27,
+            "solid": 165.33,
+            "svelte": 205.33,
+            "angular": 198.4,
+            "ember": 370.13
+          },
+          "factors": {
+            "vanilla": 1,
+            "drift": 1.24,
+            "react": 1.21,
+            "vue": 1.11,
+            "solid": 1.02,
+            "svelte": 1.27,
+            "angular": 1.22,
+            "ember": 2.28
+          }
+        },
+        {
+          "id": "03_update10th1k",
+          "name": "03. Update every 10th row (1k)",
+          "description": "Updates every 10th row in a table of 1,000 rows.",
+          "unit": "ms",
+          "values": {
+            "vanilla": 95.47,
+            "drift": 131.2,
+            "react": 104.53,
+            "vue": 121.6,
+            "solid": 89.6,
+            "svelte": 90.13,
+            "angular": 93.87,
+            "ember": 126.4
+          },
+          "factors": {
+            "vanilla": 1.07,
+            "drift": 1.46,
+            "react": 1.17,
+            "vue": 1.36,
+            "solid": 1,
+            "svelte": 1.01,
+            "angular": 1.05,
+            "ember": 1.41
+          }
+        },
+        {
+          "id": "04_select1k",
+          "name": "04. Select row (1k)",
+          "description": "Selects the 2nd row in a table of 1,000 rows.",
+          "unit": "ms",
+          "values": {
+            "vanilla": 40.32,
+            "drift": 44.48,
+            "react": 48.96,
+            "vue": 56.64,
+            "solid": 41.28,
+            "svelte": 46.4,
+            "angular": 42.24,
+            "ember": 70.08
+          },
+          "factors": {
+            "vanilla": 1,
+            "drift": 1.1,
+            "react": 1.21,
+            "vue": 1.4,
+            "solid": 1.02,
+            "svelte": 1.15,
+            "angular": 1.05,
+            "ember": 1.74
+          }
+        },
+        {
+          "id": "05_swap1k",
+          "name": "05. Swap rows (1k)",
+          "description": "Swaps row 2 and row 999 in a table of 1,000 rows.",
+          "unit": "ms",
+          "values": {
+            "vanilla": 88,
+            "drift": 125.33,
+            "react": 608,
+            "vue": 112,
+            "solid": 89.07,
+            "svelte": 97.6,
+            "angular": 98.13,
+            "ember": 158.93
+          },
+          "factors": {
+            "vanilla": 1,
+            "drift": 1.42,
+            "react": 6.91,
+            "vue": 1.27,
+            "solid": 1.01,
+            "svelte": 1.11,
+            "angular": 1.12,
+            "ember": 1.81
+          }
+        },
+        {
+          "id": "06_remove1k",
+          "name": "06. Remove single row (1k)",
+          "description": "Removes the 2nd row from a table of 1,000 rows.",
+          "unit": "ms",
+          "values": {
+            "vanilla": 84.8,
+            "drift": 104.53,
+            "react": 93.33,
+            "vue": 97.6,
+            "solid": 84.27,
+            "svelte": 92.8,
+            "angular": 88,
+            "ember": 123.2
+          },
+          "factors": {
+            "vanilla": 1.01,
+            "drift": 1.24,
+            "react": 1.11,
+            "vue": 1.16,
+            "solid": 1,
+            "svelte": 1.1,
+            "angular": 1.04,
+            "ember": 1.46
+          }
+        },
+        {
+          "id": "07_create10k",
+          "name": "07. Create 10,000 rows",
+          "description": "Creates 10,000 rows on an empty table.",
+          "unit": "ms",
+          "values": {
+            "vanilla": 1528.53,
+            "drift": 1684.27,
+            "react": 2008,
+            "vue": 1558.93,
+            "solid": 1437.33,
+            "svelte": 1966.93,
+            "angular": 1610.13,
+            "ember": 2702.4
+          },
+          "factors": {
+            "vanilla": 1.06,
+            "drift": 1.17,
+            "react": 1.4,
+            "vue": 1.08,
+            "solid": 1,
+            "svelte": 1.37,
+            "angular": 1.12,
+            "ember": 1.88
+          }
+        },
+        {
+          "id": "08_append1k",
+          "name": "08. Append 1,000 rows to 1k",
+          "description": "Appends 1,000 rows to a table with 1,000 rows (total 2k rows).",
+          "unit": "ms",
+          "values": {
+            "vanilla": 169.6,
+            "drift": 207.47,
+            "react": 190.93,
+            "vue": 191.47,
+            "solid": 169.6,
+            "svelte": 243.2,
+            "angular": 199.47,
+            "ember": 373.87
+          },
+          "factors": {
+            "vanilla": 1,
+            "drift": 1.22,
+            "react": 1.13,
+            "vue": 1.13,
+            "solid": 1,
+            "svelte": 1.43,
+            "angular": 1.18,
+            "ember": 2.2
+          }
+        },
+        {
+          "id": "09_clear1k",
+          "name": "09. Clear 1,000 rows",
+          "description": "Clears all 1,000 rows from the table.",
+          "unit": "ms",
+          "values": {
+            "vanilla": 60.27,
+            "drift": 94.93,
+            "react": 100.8,
+            "vue": 71.47,
+            "solid": 65.6,
+            "svelte": 59.2,
+            "angular": 90.67,
+            "ember": 138.67
+          },
+          "factors": {
+            "vanilla": 1.02,
+            "drift": 1.6,
+            "react": 1.7,
+            "vue": 1.21,
+            "solid": 1.11,
+            "svelte": 1,
+            "angular": 1.53,
+            "ember": 2.34
+          }
+        }
+      ],
+      "geometricMean": {
+        "vanilla": 1.02,
+        "drift": 1.3,
+        "react": 1.52,
+        "vue": 1.21,
+        "solid": 1.02,
+        "svelte": 1.2,
+        "angular": 1.17,
+        "ember": 1.89
+      }
+    },
+    {
+      "category": "memory",
+      "title": "2. Memory Footprint (in MB)",
+      "headers": [
+        "Metric / Benchmark",
+        "Unit",
+        "VanillaJS",
+        "SolidJS",
+        "DriftJS",
+        "Svelte",
+        "Vue",
+        "React",
+        "Angular",
+        "Ember"
+      ],
+      "rows": [
+        {
+          "id": "21_readyMemory",
+          "name": "21. Ready Memory",
+          "description": "JS Heap memory usage immediately after loading the page.",
+          "unit": "MB",
+          "values": {
+            "vanilla": 0.75,
+            "drift": 0.96,
+            "react": 1.45,
+            "vue": 1.12,
+            "solid": 0.86,
+            "svelte": 0.98,
+            "angular": 1.88,
+            "ember": 5.8
+          },
+          "factors": {
+            "vanilla": 1,
+            "drift": 1.28,
+            "react": 1.93,
+            "vue": 1.49,
+            "solid": 1.15,
+            "svelte": 1.31,
+            "angular": 2.51,
+            "ember": 7.73
+          }
+        },
+        {
+          "id": "22_runMemory",
+          "name": "22. Run Memory (1k rows)",
+          "description": "JS Heap memory usage after rendering 1,000 rows.",
+          "unit": "MB",
+          "values": {
+            "vanilla": 1.97,
+            "drift": 3.77,
+            "react": 4.51,
+            "vue": 3.96,
+            "solid": 3.07,
+            "svelte": 3.99,
+            "angular": 4.68,
+            "ember": 11.65
+          },
+          "factors": {
+            "vanilla": 1,
+            "drift": 1.91,
+            "react": 2.29,
+            "vue": 2.01,
+            "solid": 1.56,
+            "svelte": 2.03,
+            "angular": 2.38,
+            "ember": 5.91
+          }
+        },
+        {
+          "id": "25_clearMemory",
+          "name": "25. Run-Clear Memory",
+          "description": "JS Heap memory usage after creating and clearing 1k rows 5 times.",
+          "unit": "MB",
+          "values": {
+            "vanilla": 1.84,
+            "drift": 2.35,
+            "react": 3.22,
+            "vue": 2.42,
+            "solid": 2.08,
+            "svelte": 2.35,
+            "angular": 3.47,
+            "ember": 7.71
+          },
+          "factors": {
+            "vanilla": 1,
+            "drift": 1.28,
+            "react": 1.75,
+            "vue": 1.32,
+            "solid": 1.13,
+            "svelte": 1.28,
+            "angular": 1.89,
+            "ember": 4.19
+          }
+        }
+      ],
+      "geometricMean": {
+        "vanilla": 1,
+        "drift": 1.46,
+        "react": 1.98,
+        "vue": 1.58,
+        "solid": 1.27,
+        "svelte": 1.5,
+        "angular": 2.24,
+        "ember": 5.76
+      }
+    },
+    {
+      "category": "startup",
+      "title": "3. Implementation Size & Startup",
+      "headers": [
+        "Metric / Benchmark",
+        "Unit",
+        "VanillaJS",
+        "SolidJS",
+        "DriftJS",
+        "Svelte",
+        "Vue",
+        "Ember",
+        "Angular",
+        "React"
+      ],
+      "rows": [
+        {
+          "id": "41_uncompressedSize",
+          "name": "41. Uncompressed Size",
+          "description": "Total uncompressed JS bundle size on disk.",
+          "unit": "kB",
+          "values": {
+            "vanilla": 3.5,
+            "drift": 32.2,
+            "react": 191.3,
+            "vue": 64.6,
+            "solid": 16.1,
+            "svelte": 43.2,
+            "angular": 147.5,
+            "ember": 162.7
+          },
+          "factors": {
+            "vanilla": 1,
+            "drift": 9.2,
+            "react": 54.66,
+            "vue": 18.46,
+            "solid": 4.6,
+            "svelte": 12.34,
+            "angular": 42.14,
+            "ember": 46.49
+          }
+        },
+        {
+          "id": "42_compressedSize",
+          "name": "42. Compressed Size",
+          "description": "Total gzipped JS bundle size.",
+          "unit": "kB",
+          "values": {
+            "vanilla": 1.4,
+            "drift": 10.6,
+            "react": 60.1,
+            "vue": 25.6,
+            "solid": 6.4,
+            "svelte": 16.8,
+            "angular": 48.4,
+            "ember": 50.6
+          },
+          "factors": {
+            "vanilla": 1,
+            "drift": 7.57,
+            "react": 42.93,
+            "vue": 18.29,
+            "solid": 4.57,
+            "svelte": 12,
+            "angular": 34.57,
+            "ember": 36.14
+          }
+        },
+        {
+          "id": "43_firstPaint",
+          "name": "43. First Paint",
+          "description": "Time in ms to First Contentful Paint / Initial Paint.",
+          "unit": "ms",
+          "values": {
+            "vanilla": 30.67,
+            "drift": 34.67,
+            "react": 49.33,
+            "vue": 33.33,
+            "solid": 36,
+            "svelte": 33.33,
+            "angular": 62.67,
+            "ember": 37.33
+          },
+          "factors": {
+            "vanilla": 1,
+            "drift": 1.13,
+            "react": 1.61,
+            "vue": 1.09,
+            "solid": 1.17,
+            "svelte": 1.09,
+            "angular": 2.04,
+            "ember": 1.22
+          }
+        }
+      ],
+      "geometricMean": {
+        "vanilla": 1,
+        "drift": 4.29,
+        "react": 15.57,
+        "vue": 7.17,
+        "solid": 2.91,
+        "svelte": 5.44,
+        "angular": 14.38,
+        "ember": 12.7
+      }
+    }
+  ],
+  "runs": 5
+}

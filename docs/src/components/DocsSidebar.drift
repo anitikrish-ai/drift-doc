@@ -1,0 +1,110 @@
+<script>
+  // Bug fix: `.sidebar-link.active` existed in both stylesheets but nothing
+  // ever applied the `active` class, so the current page was never
+  // highlighted in the docs sidebar. Compute it from the ambient `url`.
+  // `url` is the raw pathname with no trailing slash (e.g. "/guide/introduction")
+  // while every href here ends in "/" (site uses trailingSlash: 'always' in
+  // drift.config.ts), so compare with trailing slashes stripped on both sides.
+  function norm(p) {
+    return p.length > 1 && p.endsWith('/') ? p.slice(0, -1) : p;
+  }
+  function cls(href) {
+    return norm(url) === norm(href) ? 'sidebar-link active' : 'sidebar-link';
+  }
+  function current(href) {
+    return norm(url) === norm(href) ? 'page' : undefined;
+  }
+</script>
+
+<aside class="docs-sidebar" id="docs-sidebar-panel">
+  <div class="sidebar-mobile-header">
+    <div class="brand-link">
+      <img src="/assets/icon.png" alt="DriftJS Logo" class="brand-logo-img" />
+      <span class="brand-text">Drift<span class="brand-accent">JS</span></span>
+    </div>
+    <label for="nav-drawer-toggle" class="sidebar-close-btn" aria-label="Close menu">&times;</label>
+  </div>
+
+  <div class="sidebar-group mobile-nav-group">
+    <div class="sidebar-title">Sections</div>
+    <ul class="sidebar-links">
+      <li><a href="/guide/introduction/" class={cls('/guide/introduction/')} aria-current={current('/guide/introduction/')}>Guide</a></li>
+      <li><a href="/architecture/virtual-machine/" class={cls('/architecture/virtual-machine/')} aria-current={current('/architecture/virtual-machine/')}>VM Architecture</a></li>
+      <li><a href="/ssg/overview/" class={cls('/ssg/overview/')} aria-current={current('/ssg/overview/')}>SSG & Islands</a></li>
+      <li><a href="/ecosystem/unplugin/" class={cls('/ecosystem/unplugin/')} aria-current={current('/ecosystem/unplugin/')}>Ecosystem</a></li>
+      <li><a href="/api/compiler/" class={cls('/api/compiler/')} aria-current={current('/api/compiler/')}>API Reference</a></li>
+    </ul>
+  </div>
+
+  <div class="sidebar-group">
+    <div class="sidebar-title">Getting Started</div>
+    <ul class="sidebar-links">
+      <li><a href="/guide/introduction/" class={cls('/guide/introduction/')} aria-current={current('/guide/introduction/')}>Introduction</a></li>
+      <li><a href="/guide/quick-start/" class={cls('/guide/quick-start/')} aria-current={current('/guide/quick-start/')}>Quick Start</a></li>
+      <li><a href="/guide/sfc-syntax/" class={cls('/guide/sfc-syntax/')} aria-current={current('/guide/sfc-syntax/')}>SFC (.drift) Syntax</a></li>
+    </ul>
+  </div>
+
+  <div class="sidebar-group">
+    <div class="sidebar-title">Best Practices</div>
+    <ul class="sidebar-links">
+      <li><a href="/best-practices/text-node-hydration/" class={cls('/best-practices/text-node-hydration/')} aria-current={current('/best-practices/text-node-hydration/')}>Text Node Hydration</a></li>
+      <li><a href="/best-practices/component-styling/" class={cls('/best-practices/component-styling/')} aria-current={current('/best-practices/component-styling/')}>Component Styling</a></li>
+    </ul>
+  </div>
+
+  <div class="sidebar-group">
+    <div class="sidebar-title">Reactivity & Core</div>
+    <ul class="sidebar-links">
+      <li><a href="/guide/reactivity/" class={cls('/guide/reactivity/')} aria-current={current('/guide/reactivity/')}>Reactivity Engine</a></li>
+      <li><a href="/guide/derived-and-effects/" class={cls('/guide/derived-and-effects/')} aria-current={current('/guide/derived-and-effects/')}>Derived & Effects</a></li>
+      <li><a href="/guide/control-flow/" class={cls('/guide/control-flow/')} aria-current={current('/guide/control-flow/')}>Control Flow Directives</a></li>
+      <li><a href="/guide/components-and-props/" class={cls('/guide/components-and-props/')} aria-current={current('/guide/components-and-props/')}>Components & Props</a></li>
+      <li><a href="/guide/context-api/" class={cls('/guide/context-api/')} aria-current={current('/guide/context-api/')}>Context API</a></li>
+    </ul>
+  </div>
+
+  <div class="sidebar-group">
+    <div class="sidebar-title">VM Architecture</div>
+    <ul class="sidebar-links">
+      <li><a href="/architecture/virtual-machine/" class={cls('/architecture/virtual-machine/')} aria-current={current('/architecture/virtual-machine/')}>Register VM & 256 Registers</a></li>
+      <li><a href="/architecture/isa-reference/" class={cls('/architecture/isa-reference/')} aria-current={current('/architecture/isa-reference/')}>Instruction Set (ISA)</a></li>
+      <li><a href="/architecture/compiler-pipeline/" class={cls('/architecture/compiler-pipeline/')} aria-current={current('/architecture/compiler-pipeline/')}>AOT Compiler Pipeline</a></li>
+      <li><a href="/architecture/reconciliation/" class={cls('/architecture/reconciliation/')} aria-current={current('/architecture/reconciliation/')}>LIS Reconciliation</a></li>
+    </ul>
+  </div>
+
+  <div class="sidebar-group">
+    <div class="sidebar-title">SSG & Islands</div>
+    <ul class="sidebar-links">
+      <li><a href="/ssg/overview/" class={cls('/ssg/overview/')} aria-current={current('/ssg/overview/')}>SSG Framework Overview</a></li>
+      <li><a href="/ssg/islands/" class={cls('/ssg/islands/')} aria-current={current('/ssg/islands/')}>Islands Architecture</a></li>
+      <li><a href="/ssg/routing-and-layouts/" class={cls('/ssg/routing-and-layouts/')} aria-current={current('/ssg/routing-and-layouts/')}>Routing & Layouts</a></li>
+      <li><a href="/ssg/content-collections/" class={cls('/ssg/content-collections/')} aria-current={current('/ssg/content-collections/')}>Content Collections</a></li>
+      <li><a href="/ssg/configuration/" class={cls('/ssg/configuration/')} aria-current={current('/ssg/configuration/')}>Configuration Guide</a></li>
+    </ul>
+  </div>
+
+  <div class="sidebar-group">
+    <div class="sidebar-title">Ecosystem Tooling</div>
+    <ul class="sidebar-links">
+      <li><a href="/ecosystem/unplugin/" class={cls('/ecosystem/unplugin/')} aria-current={current('/ecosystem/unplugin/')}>Unplugin</a></li>
+      <li><a href="/ecosystem/router/" class={cls('/ecosystem/router/')} aria-current={current('/ecosystem/router/')}>Router</a></li>
+      <li><a href="/ecosystem/cli/" class={cls('/ecosystem/cli/')} aria-current={current('/ecosystem/cli/')}>Create Drift CLI</a></li>
+      <li><a href="/ecosystem/eslint-plugin/" class={cls('/ecosystem/eslint-plugin/')} aria-current={current('/ecosystem/eslint-plugin/')}>ESLint Plugin</a></li>
+      <li><a href="/ecosystem/prettier-plugin/" class={cls('/ecosystem/prettier-plugin/')} aria-current={current('/ecosystem/prettier-plugin/')}>Prettier Plugin</a></li>
+      <li><a href="/ecosystem/vscode-plugin/" class={cls('/ecosystem/vscode-plugin/')} aria-current={current('/ecosystem/vscode-plugin/')}>VSCode Extension</a></li>
+      <li><a href="/ecosystem/devtools/" class={cls('/ecosystem/devtools/')} aria-current={current('/ecosystem/devtools/')}>DevTools Extension</a></li>
+    </ul>
+  </div>
+
+  <div class="sidebar-group">
+    <div class="sidebar-title">API Reference</div>
+    <ul class="sidebar-links">
+      <li><a href="/api/compiler/" class={cls('/api/compiler/')} aria-current={current('/api/compiler/')}>Compiler API</a></li>
+      <li><a href="/api/dom/" class={cls('/api/dom/')} aria-current={current('/api/dom/')}>DOM Client API</a></li>
+      <li><a href="/api/ssr/" class={cls('/api/ssr/')} aria-current={current('/api/ssr/')}>SSR Server API</a></li>
+      <li><a href="/api/shared/" class={cls('/api/shared/')} aria-current={current('/api/shared/')}>Shared Runtime API</a></li>
+    </ul>
+  </div>
+</aside>

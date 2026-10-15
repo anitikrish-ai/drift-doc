@@ -1,0 +1,9 @@
+<script>
+  // Vercel Web Analytics - Inject the analytics tracking
+  import { inject } from '@vercel/analytics';
+  
+  // Initialize analytics when component mounts (guard against SSR execution)
+  if (typeof window !== 'undefined') {
+    inject({ mode: 'auto' });
+  }
+</script>

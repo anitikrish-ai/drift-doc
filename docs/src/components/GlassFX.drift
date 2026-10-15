@@ -1,0 +1,214 @@
+<script>
+  if (typeof window !== 'undefined' && !window.__gfx) {
+    window.__gfx = true;
+    (function () {
+      var $ = function (s, r) { return (r || document).querySelector(s); };
+      var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+      var FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
+      // offsetParent is always null for position:fixed elements (the drawer/sidebar/palette
+      // panels all are), so visibility here is checked via rendered boxes instead.
+      function isVisible(el) { return !!(el && el.getClientRects().length); }
+      function visibleFocusable(root) {
+        return $$(FOCUSABLE, root).filter(isVisible);
+      }
+
+      // 1. Reading progress
+      var bar = document.createElement('div'); bar.className = 'gfx-progress'; document.body.appendChild(bar);
+      var ticking = false;
+      addEventListener('scroll', function () {
+        if (ticking) return; ticking = true;
+        requestAnimationFrame(function () {
+          var max = document.documentElement.scrollHeight - innerHeight;
+          bar.style.transform = 'scaleX(' + (max > 0 ? scrollY / max : 0) + ')'; ticking = false;
+        });
+      }, { passive: true });
+
+      // 2. Pointer-tracked specular glare (rAF-batched to avoid layout thrash on fast moves)
+      var glarePending = false, glareEvent = null;
+      document.addEventListener('pointermove', function (e) {
+        var c = e.target.closest && e.target.closest('.feature-card, .code-card');
+        if (!c) return;
+        glareEvent = { c: c, x: e.clientX, y: e.clientY };
+        if (glarePending) return;
+        glarePending = true;
+        requestAnimationFrame(function () {
+          glarePending = false;
+          if (!glareEvent) return;
+          var r = glareEvent.c.getBoundingClientRect();
+          glareEvent.c.style.setProperty('--mx', (glareEvent.x - r.left) + 'px');
+          glareEvent.c.style.setProperty('--my', (glareEvent.y - r.top) + 'px');
+          glareEvent = null;
+        });
+      }, { passive: true });
+
+      // 3. Copy buttons (completion feedback)
+      $$('.docs-content pre').forEach(function (pre) {
+        var b = document.createElement('button'); b.className = 'copy-btn'; b.textContent = 'Copy'; b.type = 'button';
+        b.onclick = function () {
+          navigator.clipboard.writeText(pre.innerText.replace(/Copy$|Copied$/, '').trim()).then(function () {
+            b.textContent = 'Copied'; b.classList.add('done');
+            setTimeout(function () { b.textContent = 'Copy'; b.classList.remove('done'); }, 1400);
+          });
+        };
+        pre.appendChild(b);
+      });
+
+      // 4. On-this-page TOC with scroll-spy
+      var heads = $$('.docs-content h2, .docs-content h3');
+      if (heads.length > 1) {
+        var toc = document.createElement('nav'); toc.className = 'gfx-toc'; toc.setAttribute('aria-label', 'On this page');
+        toc.innerHTML = '<h5>On this page</h5>';
+        var links = {};
+        heads.forEach(function (h, i) {
+          if (!h.id) h.id = (h.textContent || 'section').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + i;
+          var a = document.createElement('a'); a.href = '#' + h.id; a.textContent = h.textContent;
+          if (h.tagName === 'H3') a.className = 'sub';
+          toc.appendChild(a); links[h.id] = a;
+        });
+        document.body.appendChild(toc);
+        var io = new IntersectionObserver(function (es) {
+          es.forEach(function (en) {
+            if (!en.isIntersecting) return;
+            $$('a.on', toc).forEach(function (n) { n.classList.remove('on'); });
+            links[en.target.id].classList.add('on');
+          });
+        }, { rootMargin: '-15% 0px -75% 0px' });
+        heads.forEach(function (h) { io.observe(h); });
+      }
+
+      // 5. Command palette (⌘K / Ctrl+K / "/")
+      var map = { Guide: ['/guide/', 'introduction quick-start sfc-syntax reactivity derived-and-effects control-flow components-and-props context-api'],
+        'Best Practices': ['/best-practices/', 'text-node-hydration component-styling'],
+        Architecture: ['/architecture/', 'virtual-machine isa-reference compiler-pipeline reconciliation'],
+        'SSG': ['/ssg/', 'overview islands routing-and-layouts content-collections configuration'],
+        Ecosystem: ['/ecosystem/', 'unplugin router cli eslint-plugin prettier-plugin vscode-plugin devtools'],
+        API: ['/api/', 'compiler dom ssr shared'] };
+      var caps = { sfc: 'SFC', isa: 'ISA', cli: 'CLI', ssr: 'SSR', dom: 'DOM', eslint: 'ESLint', vscode: 'VSCode', ssg: 'SSG', api: 'API', and: 'and', of: 'of' };
+      var items = [];
+      Object.keys(map).forEach(function (sec) {
+        map[sec][1].split(' ').forEach(function (slug) {
+          var t = slug.split('-').map(function (w) { return caps[w] || w[0].toUpperCase() + w.slice(1); }).join(' ');
+          items.push({ t: t, s: sec, u: map[sec][0] + slug + '/' });
+        });
+      });
+
+      var scrim = document.createElement('div'); scrim.className = 'palette-scrim';
+      scrim.innerHTML = '<div class="palette" id="docs-search-palette" role="dialog" aria-modal="true" aria-label="Search documentation"><input placeholder="Search the docs…" aria-label="Search" autocomplete="off" role="combobox" aria-expanded="true" aria-autocomplete="list" aria-controls="docs-search-listbox"/><ul id="docs-search-listbox" role="listbox"></ul><div class="palette-foot"><span><kbd>↑</kbd> <kbd>↓</kbd> navigate</span><span><kbd>↵</kbd> open</span><span><kbd>esc</kbd> close</span></div></div>';
+      document.body.appendChild(scrim);
+      var panel = $('.palette', scrim), input = $('input', scrim), list = $('ul', scrim), sel = 0, shown = [], opener = null;
+
+      function setTriggersExpanded(v) {
+        $$('[data-open-palette]').forEach(function (t) { t.setAttribute('aria-expanded', v ? 'true' : 'false'); });
+      }
+      function render() {
+        var q = input.value.trim().toLowerCase();
+        shown = items.filter(function (i) { return !q || (i.t + ' ' + i.s).toLowerCase().indexOf(q) > -1; }).slice(0, 12);
+        sel = shown.length ? Math.min(sel, shown.length - 1) : 0;
+        list.innerHTML = shown.length ? '' : '<div class="empty">No results</div>';
+        shown.forEach(function (i, n) {
+          var li = document.createElement('li'); li.id = 'palette-opt-' + n;
+          li.setAttribute('role', 'option'); li.setAttribute('aria-selected', n === sel ? 'true' : 'false');
+          if (n === sel) li.className = 'sel';
+          li.innerHTML = '<span>' + i.t + '</span><small>' + i.s + '</small>';
+          li.onpointerdown = function () { location.href = i.u; };
+          list.appendChild(li);
+        });
+        input.setAttribute('aria-activedescendant', shown.length ? 'palette-opt-' + sel : '');
+      }
+      function open(from) {
+        opener = from || document.activeElement;
+        if (from) { var r = from.getBoundingClientRect(), pr = panel.getBoundingClientRect(); // anchor to trigger
+          panel.style.transformOrigin = (r.left + r.width / 2 - (innerWidth - Math.min(576, innerWidth - 32)) / 2) + 'px ' + (r.top - innerHeight * 0.14) + 'px'; }
+        scrim.classList.add('open'); input.value = ''; sel = 0; render(); setTriggersExpanded(true);
+        setTimeout(function () { input.focus(); }, 30);
+      }
+      function close() { scrim.classList.remove('open'); setTriggersExpanded(false); if (opener && opener.focus) opener.focus(); }
+      scrim.addEventListener('pointerdown', function (e) { if (e.target === scrim) close(); });
+      input.addEventListener('input', function () { sel = 0; render(); });
+      input.addEventListener('keydown', function (e) {
+        if (!shown.length && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) return;
+        if (e.key === 'ArrowDown') { sel = (sel + 1) % shown.length; render(); e.preventDefault(); }
+        else if (e.key === 'ArrowUp') { sel = (sel - 1 + shown.length) % shown.length; render(); e.preventDefault(); }
+        else if (e.key === 'Enter' && shown[sel]) location.href = shown[sel].u;
+      });
+      document.addEventListener('keydown', function (e) {
+        var typing = /input|textarea/i.test((e.target.tagName || '')) || e.target.isContentEditable;
+        if ((e.key === 'k' && (e.metaKey || e.ctrlKey)) || (e.key === '/' && !typing)) { e.preventDefault(); scrim.classList.contains('open') ? close() : open(); }
+        else if (e.key === 'Escape' && scrim.classList.contains('open')) close();
+        else if (e.key === 'Tab' && scrim.classList.contains('open')) {
+          // Focus trap: keep Tab cycling inside the open palette
+          var f = visibleFocusable(panel);
+          if (!f.length) return;
+          var first = f[0], last = f[f.length - 1];
+          if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+          else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        }
+      });
+      document.addEventListener('click', function (e) {
+        var t = e.target.closest && e.target.closest('[data-open-palette]'); if (t) open(t);
+      });
+
+      // 6. Mobile drawer: focus trap + Escape to close + focus return (the checkbox itself
+      // already exposes open/closed state to assistive tech via :checked)
+      var drawerToggle = document.getElementById('nav-drawer-toggle');
+      if (drawerToggle) {
+        var drawerOpener = null;
+        function activeDrawerPanel() {
+          // The docs sidebar is a permanent, non-dismissible column above 1024px
+          // (only a slide-in drawer below it) — nothing to trap focus in up there.
+          if (!matchMedia('(max-width: 1024px)').matches) return null;
+          var sidebar = $('.docs-sidebar');
+          if (sidebar && isVisible(sidebar)) return sidebar;
+          var drawer = $('.header-mobile-drawer');
+          if (drawer && isVisible(drawer)) return drawer;
+          return null;
+        }
+        drawerToggle.addEventListener('change', function () {
+          if (drawerToggle.checked) {
+            drawerOpener = document.activeElement;
+            var panel2 = activeDrawerPanel();
+            var f = panel2 ? visibleFocusable(panel2) : [];
+            if (f.length) setTimeout(function () { f[0].focus(); }, 30);
+          } else if (drawerOpener && drawerOpener.focus) {
+            drawerOpener.focus(); drawerOpener = null;
+          }
+        });
+        document.addEventListener('keydown', function (e) {
+          // Yield to the search palette when it's open on top of the drawer
+          if (!drawerToggle.checked || scrim.classList.contains('open')) return;
+          if (e.key === 'Escape') { drawerToggle.checked = false; drawerToggle.dispatchEvent(new Event('change', { bubbles: true })); return; }
+          if (e.key === 'Tab') {
+            var panel2 = activeDrawerPanel(); if (!panel2) return;
+            var f = visibleFocusable(panel2); if (!f.length) return;
+            var first = f[0], last = f[f.length - 1];
+            if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+            else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+          }
+        });
+      }
+
+      // 7. Real refraction on small glass surfaces (Chromium); frosted fallback elsewhere
+      var GLASS_SELECTOR = '.header-nav, .search-trigger, .github-btn, .install-command-box, .gfx-toc, .palette';
+      var glassed = typeof WeakSet === 'function' ? new WeakSet() : null;
+      function glassify() {
+        if (typeof window.liquidGlass !== 'function' || matchMedia('(prefers-reduced-transparency: reduce)').matches) return;
+        $$(GLASS_SELECTOR).forEach(function (el) {
+          if (glassed && glassed.has(el)) return;
+          if (el.offsetWidth && el.offsetWidth < 800) {
+            window.liquidGlass(el, { scale: -70, chroma: 4, blur: 6, fallbackBlur: 18 });
+            if (glassed) glassed.add(el);
+          }
+        });
+      }
+      var s = document.createElement('script'); s.src = '/liquid-glass.js'; s.onload = glassify; document.head.appendChild(s);
+      // Re-check on breakpoint/orientation changes so elements hidden at load (e.g. the
+      // desktop nav on mobile) still pick up the effect once they become visible.
+      var resizeTimer = 0;
+      addEventListener('resize', function () {
+        clearTimeout(resizeTimer); resizeTimer = setTimeout(glassify, 200);
+      }, { passive: true });
+    })();
+  }
+</script>
+
+<div class="gfx-root" hidden></div>

@@ -1,0 +1,91 @@
+{
+  "name": "driftjs-vscode-plugin",
+  "displayName": "DriftJS VSCode Extension",
+  "private": true,
+  "description": "Language server, IntelliSense, diagnostics, and syntax highlighting for DriftJS (.drift) Single File Components.",
+  "keywords": [
+    "driftjs",
+    "vscode",
+    "language-server",
+    "lsp",
+    "syntax-highlighting",
+    "snippets",
+    "sfc"
+  ],
+  "version": "0.0.18",
+  "type": "module",
+  "publisher": "driftjs",
+  "icon": "assets/icon.png",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hrutavmodha/driftjs.git"
+  },
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Snippets"
+  ],
+  "activationEvents": [
+    "onLanguage:drift",
+    "workspaceContains:**/*.drift",
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.cjs",
+  "types": "./dist/index.d.ts",
+  "contributes": {
+    "languages": [
+      {
+        "id": "drift",
+        "aliases": [
+          "DriftJS",
+          "drift"
+        ],
+        "extensions": [
+          ".drift"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./assets/icon.png",
+          "dark": "./assets/icon.png"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "drift",
+        "scopeName": "text.html.drift",
+        "path": "./syntaxes/drift.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "drift",
+        "path": "./snippets.json"
+      }
+    ]
+  },
+  "scripts": {
+    "prebuild": "node ../../scripts/assets/copy.js",
+    "build": "vite build",
+    "watch": "tsc -w",
+    "test": "vitest run --passWithNoTests",
+    "package": "node ../../scripts/assets/copy.js && vsce package --no-dependencies"
+  },
+  "dependencies": {
+    "acorn": "8.18.0",
+    "driftjs-compiler": "workspace:*",
+    "vscode-languageclient": "10.1.2",
+    "vscode-languageserver": "10.1.2",
+    "vscode-languageserver-textdocument": "1.0.15"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.3",
+    "@types/vscode": "1.138.0",
+    "@vscode/vsce": "4.0.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.1"
+  }
+}

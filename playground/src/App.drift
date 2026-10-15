@@ -1,0 +1,115 @@
+<script>
+  import DriftCodeEditor from './components/DriftCodeEditor.drift';
+  import { PRESET_EXAMPLES } from './presets/index.js';
+  import { encodeCodeToHash, decodeCodeFromHash, copyToClipboard } from './utils/url.js';
+  import { setEditorTheme } from './editor/monaco.js';
+
+  // State
+  let selectedExampleId = 'counter';
+  let isDarkMode = true;
+  let toastText = '';
+  let toastTimer = null;
+
+  let currentCode = decodeCodeFromHash() || PRESET_EXAMPLES[0].code;
+
+  function showToast(msg) {
+    toastText = msg;
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toastText = '';
+    }, 2500);
+  }
+
+  function onEditorCodeChange(newCode) {
+    currentCode = newCode;
+    window.location.hash = encodeCodeToHash(newCode);
+  }
+
+  function onExampleChange(e) {
+    const id = e.target.value;
+    selectedExampleId = id;
+    const example = PRESET_EXAMPLES.find((ex) => ex.id === id);
+    if (example) {
+      currentCode = example.code;
+      window.location.hash = encodeCodeToHash(example.code);
+    }
+  }
+
+  function resetCurrentCode() {
+    const example = PRESET_EXAMPLES.find((ex) => ex.id === selectedExampleId) || PRESET_EXAMPLES[0];
+    if (example) {
+      currentCode = example.code;
+      window.location.hash = encodeCodeToHash(example.code);
+      showToast('Reset to original ' + example.name);
+    }
+  }
+
+  function shareSnippet() {
+    const hash = window.location.hash || encodeCodeToHash(currentCode);
+    const url = window.location.origin + window.location.pathname + hash;
+    copyToClipboard(url);
+    showToast('Share link copied to clipboard!');
+  }
+
+  function toggleTheme() {
+    isDarkMode = !isDarkMode;
+    const shell = document.querySelector('.playground-shell');
+    if (shell) {
+      if (isDarkMode) {
+        shell.classList.remove('theme-light');
+      } else {
+        shell.classList.add('theme-light');
+      }
+    }
+    setEditorTheme(isDarkMode ? 'drift-dark' : 'drift-light');
+  }
+</script>
+
+<div class="playground-shell">
+  <!-- Header -->
+  <header class="app-header">
+    <div class="brand">
+      <h1 class="brand-title">DriftJS Playground</h1>
+      <!-- [UI SOURCE MAP TEST] Intentional error in template markup -->
+      <span>{undefinedUIObject.intentionalError}</span>
+    </div>
+
+    <div class="header-center">
+      <span class="example-select-label">Preset:</span>
+      <select class="example-select" onchange={onExampleChange}>
+        @for (ex in PRESET_EXAMPLES key ex.id) {
+          <option value={ex.id}>{ex.name}</option>
+        }
+      </select>
+    </div>
+
+    <div class="header-actions">
+      <button class="btn-header" onclick={resetCurrentCode} title="Reset to template">
+        <span>↺</span> Reset
+      </button>
+      <button class="btn-header primary" onclick={shareSnippet} title="Share Link">
+        <span>🔗</span> Share Link
+      </button>
+      <button class="btn-header" onclick={toggleTheme} title="Toggle Theme">
+        <span>{isDarkMode ? '☀️ Light' : '🌙 Dark'}</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Embedded DriftCodeEditor Instance -->
+  <main class="editor-stage">
+    <DriftCodeEditor
+      width="100%"
+      height="100%"
+      code={currentCode}
+      theme={isDarkMode ? 'dark' : 'light'}
+      onchange={onEditorCodeChange}
+    />
+    <!-- Toast Notification -->
+    @if toastText !== '' {
+      <div class="toast-notice">
+        <span>{toastText}</span>
+      </div>
+    }
+  </main>
+</div>

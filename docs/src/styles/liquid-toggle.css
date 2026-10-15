@@ -1,0 +1,57 @@
+/* Liquid toggle — adapted from the /toggle skill, unlayered (docs.css `*{margin:0}` would beat layered rules) and scaled 0.6x for a header. */
+.lt { display: inline-block; --transition: .2s; --ease: ease-out; }
+.lt[data-bounce='true']:has(:is(button:active, [data-pressed='true'])) {
+  --transition: .6s;
+  --ease: linear(0 0%, .6091 3.69%, 1.0259 7.24%, 1.1733 9.05%, 1.283 10.92%, 1.3562 12.87%, 1.3948 14.95%, 1.4014 16.03%, 1.3999 17.16%, 1.3731 19.64%, 1.3202 22.27%, 1.1394 29.39%, 1.0582 33.17%, .9943 37.45%, .9734 39.64%, .9593 41.92%, .9505 45.08%, .9517 48.7%, .9924 63.02%, 1.0046 71.2%, 1.0061 78.24%, 1 100%);
+}
+.liquid-toggle, .liquid-toggle span { display: block; }
+.liquid-toggle {
+  --unchecked: hsl(218, 8%, 81%); --width: 84; --height: 36; --border: 3px;
+  --checked: hsl(var(--hue, 222), calc((8 + (var(--complete) / 100 * 92)) * 1%), calc((81 - (var(--complete) / 100 * (81 - 43))) * 1%));
+  height: calc(var(--height) * 1px); width: calc(var(--width) * 1px);
+  border: 0; padding: 0; border-radius: 100px; background: #0000; cursor: pointer; position: relative;
+  overflow: visible; container-type: inline-size; outline-offset: 2px; transition: outline var(--transition) var(--ease);
+  transform-style: preserve-3d; touch-action: pan-y; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+}
+.liquid-toggle::after { content: ''; position: absolute; inset: -8px -6px; } /* 44px+ touch target */
+.liquid-toggle * { pointer-events: none; }
+.liquid-toggle:focus-visible { outline: 3px solid color-mix(in oklch, var(--checked), #0000); }
+.liquid-toggle:active, .liquid-toggle[data-active='true']:focus-visible { outline: none; }
+.lt[data-mapped='false'] .liquid-toggle {
+  --progress: round(down, var(--complete), 85);
+  --checked: hsl(var(--hue, 222), calc((8 + (var(--progress) / 85 * 92)) * 1%), calc((81 - (var(--progress) / 85 * (81 - 43))) * 1%));
+}
+.lt[data-mapped='false'] .liquid-toggle .indicator, .lt[data-mapped='false'] .liquid-toggle .indicator--masked { transition: background calc(var(--transition) * .5) ease-out; }
+.lt[data-mapped='false'] .liquid-toggle .liquid__shadow { transition: box-shadow calc(var(--transition) * .5) ease-out; }
+.lt[data-mapped='false'] .liquid__track { transition-property: height, width, filter, left, background; transition-duration: var(--transition), var(--transition), var(--transition), var(--transition), calc(var(--transition) * .5); transition-timing-function: var(--ease), var(--ease), var(--ease), var(--ease), ease-out; }
+
+.liquid-toggle .indicator { border-radius: 100px; pointer-events: none; height: 100%; width: 100%; background: var(--checked); position: absolute; top: 50%; left: 50%; translate: -50% -50%; }
+.liquid-toggle .knockout { height: calc(var(--height) * 1px); width: calc(var(--width) * 1px); border-radius: 100px; filter: url(#lt-remove-black); position: absolute; inset: 0; will-change: filter, scale; transform: translate3d(0, 0, 0); }
+.liquid-toggle .indicator--masked { background: var(--checked); z-index: 12; container-type: inline-size; }
+.liquid-toggle .mask { position: absolute; height: calc(100% - (2 * var(--border))); width: calc(60% - (2 * var(--border))); top: 50%; background: #000; left: var(--border); border-radius: 100px;
+  translate: calc((var(--complete) / 100) * (100cqi - 60cqi)) -50%; transition-property: height, width, margin, scale; transition-duration: var(--transition); transition-timing-function: var(--ease); will-change: height, width, margin; }
+.liquid-toggle .wrapper { position: absolute; inset: 0; border-radius: 100px; clip-path: inset(0 0 0 0 round 100px); filter: blur(4px); transition: filter var(--transition) var(--ease); }
+.liquid-toggle .liquids { position: absolute; inset: 0; transform: translate3d(0, 0, 0); border-radius: 100px; overflow: hidden; filter: url(#lt-goo); }
+.liquid-toggle .liquid__shadow { position: absolute; inset: 0; border-radius: 100px; box-shadow: inset 0 0 3px 4px var(--checked), inset calc(((var(--complete) / 100) * 8px) - 4px) 0 3px 4px var(--checked); }
+.liquid-toggle .liquid__track { height: calc(var(--height) * 1px); width: calc(var(--width) * 1px); background: var(--checked); border-radius: 100px; position: absolute; top: 50%; left: 0;
+  translate: calc((var(--complete) / 100) * (100cqi - 100% - (6 * var(--border)))) -50%; transition-property: height, width, filter, left; transition-duration: var(--transition); transition-timing-function: var(--ease); }
+.liquid-toggle[data-pressed='true'] .liquid__track { min-height: calc(var(--height) * .5px); }
+.liquid-toggle[aria-pressed='true']:not([data-active='true']) .liquid__track { left: calc(var(--border) * 6); }
+.liquid-toggle .indicator__liquid { position: absolute; height: calc(100% - (2 * var(--border))); width: calc(60% - (2 * var(--border))); container-type: inline-size; top: 50%; left: var(--border); background: #0000; border-radius: 100px;
+  translate: calc((var(--complete) / 100) * (100cqi - 100% - (2 * var(--border)))) -50%; transition-property: scale; transition-duration: var(--transition); transition-timing-function: var(--ease); }
+.liquid-toggle .indicator__liquid .shadow { opacity: 0; position: absolute; inset: 0; border-radius: 100px; z-index: 20;
+  box-shadow: 1px -1px 2px hsl(0 0% 100% / .5) inset, 0 -1px 2px hsl(0 0% 100% / .5) inset, -1px -1px 2px hsl(0 0% 100% / .5) inset, 1px 1px 2px hsl(0 0% 30% / .5) inset, -8px 4px 10px -6px hsl(0 0% 30% / .25) inset, -1px 1px 6px hsl(0 0% 30% / .25) inset, -1px -1px 8px hsl(0 0% 60% / .15), 1px 1px 2px hsl(0 0% 30% / .15), 2px 2px 6px hsl(0 0% 30% / .15), -2px -1px 2px hsl(0 0% 100% / .25) inset, 3px 6px 16px -6px hsl(0 0% 30% / .5); }
+.liquid-toggle .indicator__liquid .cover { position: absolute; inset: 0; background: #fff; border-radius: 100px; }
+.liquid-toggle .indicator__liquid :is(.cover, .shadow) { transition: opacity var(--transition) var(--ease); }
+/* Pressed: the knob swells into a glass bubble */
+.liquid-toggle[data-active='true'] .indicator--masked .mask, .liquid-toggle:active .indicator--masked .mask {
+  height: calc((100% - (2 * var(--border))) * (1.65 - (var(--delta, 0) * .025))); width: calc((60% - (2 * var(--border))) * (1.65 + (var(--delta, 0) * .025)));
+  margin-left: calc((60% - (2 * var(--border))) * ((.65 + (var(--delta, 0) * .025)) * -.5)); }
+.liquid-toggle[data-active='true'] .indicator__liquid, .liquid-toggle:active .indicator__liquid { scale: calc(1.65 + (var(--delta, 0) * .025)) calc(1.65 - (var(--delta, 0) * .025)); }
+.liquid-toggle[data-active='true'] .wrapper, .liquid-toggle:active .wrapper { filter: blur(0); }
+.liquid-toggle[data-active='true'] .indicator__liquid .shadow, .liquid-toggle:active .indicator__liquid .shadow { opacity: 1; }
+.liquid-toggle[data-active='true'] .indicator__liquid .cover, .liquid-toggle:active .indicator__liquid .cover { opacity: 0; }
+.liquid-toggle[data-active='true'] .liquid__track, .liquid-toggle:active .liquid__track { left: calc(var(--border) * 3); height: calc((var(--height) * 1px) - (6 * var(--border))); }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+@media (max-width: 480px) { .liquid-toggle { --width: 66; --height: 30; --border: 2.5px; } }
+@media (prefers-reduced-motion: reduce) { .lt[data-bounce='true']:has(:is(button:active, [data-pressed='true'])) { --transition: .15s; --ease: ease-out; } }

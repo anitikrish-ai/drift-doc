@@ -1,0 +1,52 @@
+{
+  "name": "driftjs-compiler",
+  "version": "0.0.18",
+  "description": "AOT compiler, lexer, parser, AST transformer, and register VM bytecode generator for DriftJS.",
+  "keywords": [
+    "driftjs",
+    "compiler",
+    "parser",
+    "lexer",
+    "ast",
+    "bytecode",
+    "virtual-machine",
+    "aot-compiler",
+    "reactivity",
+    "ui"
+  ],
+  "type": "module",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "main": "./dist/index-cjs.js",
+  "module": "./dist/index-es.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "vite build",
+    "test": "vitest run"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index-es.js",
+      "require": "./dist/index-cjs.js",
+      "default": "./dist/index-es.js"
+    }
+  },
+  "license": "MIT",
+  "dependencies": {
+    "acorn": "8.18.0",
+    "acorn-walk": "8.3.5",
+    "driftjs-shared": "workspace:*",
+    "magic-string": "^1.4.2"
+  },
+  "devDependencies": {
+    "@jridgewell/trace-mapping": "^0.3.31",
+    "@types/acorn": "6.0.4",
+    "@types/estree": "1.0.9",
+    "typescript": "7.0.2",
+    "vite": "8.3.1",
+    "vitest": "5.0.2"
+  }
+}

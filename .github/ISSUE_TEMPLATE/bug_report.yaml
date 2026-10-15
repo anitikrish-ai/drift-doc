@@ -1,0 +1,124 @@
+name: "Bug Report"
+description: Report a bug or unexpected behavior across the DriftJS compiler, runtime, Vite plugin, SSR, CLI, or tooling.
+title: "[BUG]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve **DriftJS**!
+        Before submitting, please check [existing open issues](https://github.com/hrutavmodha/driftjs/issues) and [discussions](https://github.com/hrutavmodha/driftjs/discussions) to ensure the issue has not already been reported.
+
+  - type: dropdown
+    id: package
+    attributes:
+      label: Affected Package / Area
+      description: Select the package or subsystem where the bug occurs.
+      options:
+        - "driftjs-compiler (Lexer, Parser, Transformer, Bytecode Generator, Directives @if/@for/@switch)"
+        - "driftjs-dom (Client VM, Keyed List Reconciler, Hydration, Event Delegation, Async Reactivity)"
+        - "driftjs-ssr (DriftServerVM, renderToString, Virtual DOM Serialization)"
+        - "driftjs-shared (Scope Chain, Expression Evaluator, Precompiled AST Execution)"
+        - "driftjs-unplugin (Universal Build Plugin for Vite, Rollup, Webpack, esbuild, Rspack, HMR)"
+        - "create-drift (CLI Scaffolder, Starter Templates, CSR/SSR Options)"
+        - "driftjs-vscode (Language Server Protocol, Syntax Highlighting, Diagnostics, Snippets)"
+        - "Playground / Starter Template"
+        - "Documentation / ISA Specification"
+        - "Other / Workspace Infrastructure"
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: DriftJS Version
+      description: What version of DriftJS packages are you using? (e.g. 0.0.6 or latest git main)
+      placeholder: "0.0.6"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of the bug. What did you expect to happen, and what happened instead?
+      placeholder: "Describe the bug and the difference between expected and actual behavior."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction-code
+    attributes:
+      label: Minimal Reproduction (.drift SFC or Code Snippet)
+      description: Provide a minimal `.drift` component or JS test case reproducing the issue.
+      placeholder: |
+        <script>
+          let count = 0;
+          function increment() {
+            count++;
+          }
+        </script>
+
+        <div class="counter">
+          <p>Current count: {count}</p>
+          <button onclick={increment}>Increment (+1)</button>
+
+          @if count > 0 {
+            <span>Positive</span>
+          } @else if count < 0 {
+            <span>Negative</span>
+          } @else {
+            <span>Zero</span>
+          }
+        </div>
+      render: html
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: Steps to Reproduce
+      description: Step-by-step instructions to reproduce the issue.
+      placeholder: |
+        1. Compile the component or mount via `mount(compiledModule, container)`
+        2. Click the button or trigger state mutation
+        3. Observe the compiler error / runtime panic / reconciliation mismatch
+    validations:
+      required: true
+
+  - type: textarea
+    id: error-logs
+    attributes:
+      label: Error Logs & Stack Traces
+      description: Paste any compiler errors, Vitest test failure output, or browser console stack traces.
+      render: shell
+    validations:
+      required: false
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment Info
+      description: OS, Node.js version, package manager, browser / headless DOM (happy-dom/jsdom), and Vite version.
+      placeholder: "Node v20.11.0, pnpm v10.18.2, Linux x64, Vite v8.1.5, Chrome 128 / happy-dom"
+    validations:
+      required: false
+
+  - type: textarea
+    id: technical-context
+    attributes:
+      label: Technical & Internal Details
+      description: Any relevant opcode details (e.g. REACTIVE_IF, REACTIVE_FOR, SET_ATTR), AST transformer stage info, reconciler state, or scope chain insights.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have verified this issue is not already reported in existing open issues.
+          required: true
+        - label: I have provided a minimal reproduction snippet and clear steps to reproduce.
+          required: true

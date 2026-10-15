@@ -1,0 +1,24 @@
+<script>
+  import Header from '../components/Header.drift';
+  import Footer from '../components/Footer.drift';
+  import Analytics from '../components/Analytics.drift';
+  import GlassFX from '../components/GlassFX.drift';
+  import '../styles/docs.css';
+  import '../styles/glass.css';
+  import '../styles/liquid-toggle.css';
+
+  let isRoot = url === '/' || url === '';
+</script>
+
+<div class={isRoot ? 'site-wrapper is-root-page' : 'site-wrapper'}>
+  <input type="checkbox" id="nav-drawer-toggle" class="drawer-toggle-input" aria-label="Toggle Navigation Menu" aria-controls="mobile-nav-drawer docs-sidebar-panel" />
+  <label for="nav-drawer-toggle" class="mobile-drawer-backdrop" aria-hidden="true"></label>
+  <Header isRoot={isRoot} />
+  <div class="site-main">
+    {children}
+  </div>
+  <Footer />
+  <Analytics client:load />
+  <GlassFX client:load />
+</div>
+
