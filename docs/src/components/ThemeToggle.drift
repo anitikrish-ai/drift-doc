@@ -27,9 +27,18 @@
         try { localStorage.setItem('drift-theme', dark ? 'dark' : 'light'); } catch (e) {}
         if (navigator.vibrate) navigator.vibrate(8); // same frame as the flip
       }
+      // Bug fix: sync() used to run again on `DOMContentLoaded` and `load` (the
+      // latter fires only once this page's ~3MB of JS, incl. the code editor,
+      // has finished downloading — easily *seconds* after the page is
+      // interactive). If the person tapped the toggle before `load` fired,
+      // sync() saw `st` already null (pointerup clears it immediately) and
+      // force-reset the knob mid-animation, fighting the pending tap/spring
+      // and leaving it visually stuck between states. Track "busy" per
+      // button for the whole tap->spring lifecycle, not just the drag, and
+      // have sync() skip any button that's mid-transition.
       function sync() {
         var dark = !root.classList.contains('light');
-        $$('.liquid-toggle').forEach(function (b) { if (!st || st.b !== b) { b.setAttribute('aria-pressed', dark); setC(b, dark ? 100 : 0); } });
+        $$('.liquid-toggle').forEach(function (b) { if ((!st || st.b !== b) && !b.__drift_busy) { b.setAttribute('aria-pressed', dark); setC(b, dark ? 100 : 0); } });
       }
       sync(); requestAnimationFrame(sync); addEventListener('DOMContentLoaded', sync); addEventListener('load', sync);
 
@@ -44,13 +53,15 @@
         return function () { cancelAnimationFrame(id); };
       }
       function go(b, target, v) {
+        b.__drift_busy = true;
         commit(target === 100);
         cancelAnim = spring(cur(b), target, v, function (x) { setC(b, x); }, function () {
-          setTimeout(function () { flag(b, false); b.setAttribute('aria-pressed', target === 100); }, 50);
+          setTimeout(function () { flag(b, false); b.setAttribute('aria-pressed', target === 100); b.__drift_busy = false; }, 50);
         }, reduced ? 0.12 : 0.25);
       }
       function tap(b) { // bubble swells first, then the knob slides (as in the skill)
         var target = b.getAttribute('aria-pressed') === 'true' ? 0 : 100;
+        b.__drift_busy = true;
         flag(b, true); timer = setTimeout(function () { go(b, target, 0); }, reduced ? 0 : 180);
       }
 
@@ -79,6 +90,15 @@
       }
       document.addEventListener('pointerup', function (e) { end(e, false); });
       document.addEventListener('pointercancel', function (e) { end(e, true); });
+      // Bug fix / hardening: some mobile browsers (notably iOS Safari, after
+      // certain scroll/gesture interactions) drop a captured pointer without
+      // ever firing `pointerup` or `pointercancel`. Without this, `st` is
+      // never cleared and the knob is left stuck mid-press (swollen, with
+      // `--delta` still set) until the next unrelated pointer gesture. This
+      // event is the one reliable signal that capture is gone either way.
+      document.addEventListener('lostpointercapture', function (e) {
+        if (st && st.b === e.target) end(e, false);
+      });
       document.addEventListener('click', function (e) { // keyboard only (Enter / Space); pointer is handled above
         var b = e.target.closest && e.target.closest('.liquid-toggle');
         if (b && e.detail === 0) { clearTimeout(timer); cancelAnim(); tap(b); }
