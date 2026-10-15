@@ -69,6 +69,7 @@
         var b = e.target.closest && e.target.closest('.liquid-toggle'); if (!b || e.button > 0) return;
         clearTimeout(timer); cancelAnim(); // grab it mid-flight
         b.setPointerCapture(e.pointerId); flag(b, true);
+        b.__drift_pointerAt = performance.now(); // see click listener below
         st = { b: b, x0: e.clientX, last: e.clientX, lt: performance.now(), v: 0, c0: cur(b), drag: false, travel: b.offsetWidth * 0.4 };
       });
       document.addEventListener('pointermove', function (e) {
@@ -99,9 +100,18 @@
       document.addEventListener('lostpointercapture', function (e) {
         if (st && st.b === e.target) end(e, false);
       });
-      document.addEventListener('click', function (e) { // keyboard only (Enter / Space); pointer is handled above
-        var b = e.target.closest && e.target.closest('.liquid-toggle');
-        if (b && e.detail === 0) { clearTimeout(timer); cancelAnim(); tap(b); }
+      document.addEventListener('click', function (e) { // keyboard only; pointer is handled above
+        var b = e.target.closest && e.target.closest('.liquid-toggle'); if (!b) return;
+        // Bug fix: `e.detail === 0` was meant to mean "no pointer, so this is
+        // keyboard activation" — but several mobile browsers fire the
+        // synthetic `click` that follows a touch tap with `detail === 0` too,
+        // not just real Enter/Space. That made every tap run `tap(b)` TWICE:
+        // once from pointerup, once from here, flipping the toggle back to
+        // where it started before the theme change ever committed (knob
+        // visibly moves, theme silently reverts). Guard on real elapsed time
+        // since this button's last pointerdown instead of trusting `detail`.
+        if (b.__drift_pointerAt && performance.now() - b.__drift_pointerAt < 500) return;
+        clearTimeout(timer); cancelAnim(); tap(b);
       });
     })();
   }
