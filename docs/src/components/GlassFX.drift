@@ -185,6 +185,21 @@
             else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
           }
         });
+        // Bug fix: the checkbox driving the drawer is pure CSS state — it never
+        // unchecks itself when a resize crosses the 1024px breakpoint. Without
+        // this, opening the drawer on a phone, then rotating to landscape or
+        // widening the window past 1024px (where the drawer markup is simply
+        // hidden, not unmounted) and back down again left the drawer sitting
+        // open from a resize the person never consciously triggered.
+        var wasDesktop = matchMedia('(min-width: 1025px)').matches;
+        addEventListener('resize', function () {
+          var isDesktop = matchMedia('(min-width: 1025px)').matches;
+          if (isDesktop && !wasDesktop && drawerToggle.checked) {
+            drawerToggle.checked = false;
+            drawerToggle.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+          wasDesktop = isDesktop;
+        }, { passive: true });
       }
 
       // 7. Real refraction (Chromium); frosted fallback elsewhere. Includes .site-header

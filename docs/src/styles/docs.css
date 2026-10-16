@@ -879,6 +879,13 @@ html.light .gradient-text {
     display: none !important;
   }
 
+  /* Bug fix: the page behind the drawer kept scrolling while the drawer was
+     open (nothing locked body scroll), so a swipe meant to scroll the drawer's
+     own link list could instead scroll the page underneath it, or vice versa. */
+  html:has(#nav-drawer-toggle:checked) {
+    overflow: hidden;
+  }
+
   .drawer-toggle-input:focus-visible ~ .site-header .mobile-hamburger-btn {
     outline: 2px solid var(--accent-cyan);
     outline-offset: 2px;
