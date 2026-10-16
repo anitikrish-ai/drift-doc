@@ -34,16 +34,26 @@
         // not another hand-rolled animation loop. Unsupported/reduced-motion
         // browsers just get the instant class swap under the existing
         // `theme-fade` CSS crossfade (glass.css), so nothing regresses there.
-        if (!reduced && document.startViewTransition) {
-          if (originEl) {
-            var r = originEl.getBoundingClientRect();
-            root.style.setProperty('--vt-x', (r.left + r.width / 2) + 'px');
-            root.style.setProperty('--vt-y', (r.top + r.height / 2) + 'px');
-          }
-          document.startViewTransition(apply);
-        } else {
-          apply();
+        // Bug fix: this was called with no try/catch. If startViewTransition
+        // exists but throws (partial/buggy support on some browsers, or a
+        // transition already in flight) the exception aborted commit() before
+        // `apply()` ever ran and before `go()`'s spring animation started —
+        // the toggle froze completely (no slide, no theme change) instead of
+        // just not getting the fancy reveal. `used` guarantees apply() always
+        // runs exactly once either way.
+        var used = false;
+        if (!reduced && typeof document.startViewTransition === 'function') {
+          try {
+            if (originEl) {
+              var r = originEl.getBoundingClientRect();
+              root.style.setProperty('--vt-x', (r.left + r.width / 2) + 'px');
+              root.style.setProperty('--vt-y', (r.top + r.height / 2) + 'px');
+            }
+            document.startViewTransition(apply);
+            used = true;
+          } catch (err) { used = false; }
         }
+        if (!used) apply();
       }
       // Bug fix: sync() used to run again on `DOMContentLoaded` and `load` (the
       // latter fires only once this page's ~3MB of JS, incl. the code editor,
