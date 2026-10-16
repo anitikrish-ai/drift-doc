@@ -538,16 +538,27 @@ export function hydrateIslands(
     const media = el.getAttribute('data-drift-media') ?? undefined;
     const rootMargin = el.getAttribute('data-drift-root-margin') ?? undefined;
 
-    const controller = hydrateSelectively(comp, el, {
-      trigger,
-      idleTimeout: timeout,
-      timeout,
-      media,
-      rootMargin,
-      scope: { ...options.globalScope, props, ...props },
-    });
-
-    controllers.push(controller);
+    // Bug fix: this call used to run bare. An `eager` trigger mounts/hydrates
+    // synchronously right here, so if one island's script throws (a bad
+    // component, a bad prop, anything), the exception propagated straight out
+    // of this for-loop and killed hydration for every island still left to
+    // process — on this site, that silently took out the entire rest of the
+    // page's interactivity whenever an island positioned earlier in the DOM
+    // (e.g. analytics) failed. One island's bug should never be able to break
+    // every island after it.
+    try {
+      const controller = hydrateSelectively(comp, el, {
+        trigger,
+        idleTimeout: timeout,
+        timeout,
+        media,
+        rootMargin,
+        scope: { ...options.globalScope, props, ...props },
+      });
+      controllers.push(controller);
+    } catch (err) {
+      console.error(`[DriftJS] Island "${name}" failed to hydrate:`, err);
+    }
   }
 
   return {

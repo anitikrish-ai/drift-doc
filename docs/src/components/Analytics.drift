@@ -1,9 +1,21 @@
 <script>
-  // Vercel Web Analytics - Inject the analytics tracking
-  import { inject } from '@vercel/analytics';
-  
-  // Initialize analytics when component mounts (guard against SSR execution)
-  if (typeof window !== 'undefined') {
-    inject({ mode: 'auto' });
+  // Vercel Web Analytics. Bug fix: this used to `import { inject } from
+  // '@vercel/analytics'` — but .drift <script> blocks compile to VM bytecode,
+  // not real ES modules, and the compiler drops `import` statements entirely
+  // (they have no meaning to the bytecode interpreter). The `inject(...)`
+  // call below was left referencing a name that was never bound, so it threw
+  // a ReferenceError on every single page load — and because island
+  // hydration wasn't isolated (see driftjs-dom fix), that one throw used to
+  // cancel every island mounted after this one, breaking search, the liquid
+  // glass effect, the TOC, and the copy buttons site-wide. Load the script
+  // the same way GlassFX loads liquid-glass.js instead: a plain, optional
+  // <script> tag, so a slow/blocked network request only costs analytics,
+  // never the rest of the page.
+  if (typeof window !== 'undefined' && !document.getElementById('va-script')) {
+    var s = document.createElement('script');
+    s.id = 'va-script';
+    s.defer = true;
+    s.src = '/_vercel/insights/script.js';
+    document.head.appendChild(s);
   }
 </script>
