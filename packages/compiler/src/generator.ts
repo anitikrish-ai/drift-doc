@@ -83,9 +83,41 @@ export class DriftGenerator {
       };
     }
 
-    if (this.ast.body.length === 1 && this.ast.body[0]?.type === ASTNodeType.Element) {
+    if (
+      this.ast.body.length === 1 &&
+      this.ast.body[0]?.type === ASTNodeType.Element &&
+      (this.ast.body[0] as ElementNode).tagName !== 'script'
+    ) {
       const rootReg = this.allocRegister();
       this.compileElement(this.ast.body[0] as ElementNode, rootReg);
+    } else if (
+      this.ast.body.length === 1 &&
+      this.ast.body[0]?.type === ASTNodeType.Element &&
+      (this.ast.body[0] as ElementNode).tagName === 'script'
+    ) {
+      // Single-root fast path above assumes the lone body node is template
+      // markup to render. A component whose body is ONLY its <script> block
+      // (no template at all, e.g. Analytics.drift) hit that path directly via
+      // compileElement(), which has no "script tags are logic, not DOM"
+      // special-casing (compileNode() does, at the top of this file, but this
+      // fast path bypassed it) — so it emitted CREATE_ELEMENT('script') with
+      // the script's Acorn-parsed statement AST as a child, which serialized
+      // as literal "[object Object]" text inside a rendered <script> tag on
+      // every page. Route it through compileScriptElement (EXEC_SCRIPT only,
+      // nothing rendered) and return an empty fragment, matching the
+      // zero-body case just above.
+      const rootReg = this.allocRegister();
+      this.compileScriptElement(this.ast.body[0] as ElementNode);
+      this.emit(Opcode.CREATE_FRAGMENT, rootReg);
+      return {
+        bytecode: this.bytecode,
+        constants: this.constants,
+        reactiveBindings: this.buildReactiveBindings(),
+        declaredVars: [...this.declaredVars],
+        derived: this.derivedBindings,
+        effects: this.effectBindings,
+        imports: this.imports,
+      };
     } else {
       const rootReg = this.allocRegister();
       this.emit(Opcode.CREATE_FRAGMENT, rootReg);
