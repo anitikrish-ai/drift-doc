@@ -14,6 +14,7 @@
   --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
   --header-height: 5.25rem;
   --glass-tint: rgba(255,255,255,.055);
+  --header-tint: rgba(255,255,255,.028);
   --glass-heavy: rgba(10,14,26,.62);
   --glass-edge: inset 0 1px 1px rgba(255,255,255,.35), inset 0 -8px 20px rgba(255,255,255,.04), inset 0 0 0 1px rgba(255,255,255,.1);
   --glass-shadow: 0 24px 60px rgba(0,0,0,.45);
@@ -29,6 +30,7 @@ html.light {
   --border-accent: rgba(15,23,42,.16);
   --code-bg: rgba(255,255,255,.7);
   --glass-tint: rgba(255,255,255,.5);
+  --header-tint: rgba(255,255,255,.22);
   --glass-heavy: rgba(255,255,255,.72);
   --glass-edge: inset 0 1px 1px rgba(255,255,255,.95), inset 0 0 0 1px rgba(255,255,255,.6);
   --glass-shadow: 0 20px 50px rgba(30,50,90,.16);
@@ -160,13 +162,16 @@ html.light body::before {
 @media (min-width: 1025px) {
   .site-header {
     top: .75rem; height: 3.75rem; width: calc(100% - 2rem); max-width: 88rem; margin: .75rem auto 0; border: 0; border-radius: 999px;
-    background: var(--glass-tint);
+    background: var(--header-tint);
     box-shadow: var(--glass-edge), var(--glass-shadow); -webkit-backdrop-filter: blur(28px) saturate(180%); backdrop-filter: blur(28px) saturate(180%);
   }
   .header-inner { padding: 0 1rem 0 1.25rem; }
-  /* .header-nav gets real pixel refraction (liquidGlass, see GlassFX.drift) — this is
-     the actual "bend", not a drawn gradient. */
-  .header-nav { display: flex; gap: .15rem; padding: .3rem; border-radius: 999px; background: rgba(255,255,255,.05); box-shadow: var(--glass-edge); }
+  /* Bug fix / request: this used to carry its own pill (background + box-shadow),
+     a second glass surface stacked on the header's — that's what "light surface on
+     a light surface" at the top of this file warns against, and it fought the
+     header's own liquidGlass() refraction visually. The nav links now sit directly
+     on the header's glass; only the hover/active state gets its own pill. */
+  .header-nav { display: flex; gap: .15rem; padding: .3rem; }
   .nav-link { padding: .4rem .9rem; border-radius: 999px; font-size: .9rem; font-weight: 600; color: var(--text-secondary); transition: background-color .25s var(--ease-out), color .25s var(--ease-out); }
   .nav-link:hover { background: rgba(255,255,255,.1); color: var(--text-primary); }
   /* .docs-sidebar also gets real refraction now (GlassFX GLASS_SELECTOR) — its width
