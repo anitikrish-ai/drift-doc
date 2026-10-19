@@ -45,7 +45,7 @@
 
       var setTheme = function (dark, originEl) {
         var apply = function () {
-          root.classList.add('theme-fade'); clearTimeout(fadeT); fadeT = setTimeout(function () { root.classList.remove('theme-fade'); }, 500);
+          if (!used) { root.classList.add('theme-fade'); clearTimeout(fadeT); fadeT = setTimeout(function () { root.classList.remove('theme-fade'); }, 500); } // View Transition already animates the swap; the per-element crossfade would fight its snapshot
           root.classList.toggle('light', !dark);
           try { localStorage.setItem('drift-theme', dark ? 'dark' : 'light'); } catch (e) {}
           if (navigator.vibrate) navigator.vibrate(8);
