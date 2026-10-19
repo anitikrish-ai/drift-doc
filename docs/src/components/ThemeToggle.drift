@@ -28,22 +28,22 @@
       var saved = null; try { saved = localStorage.getItem('drift-theme'); } catch (e) {}
       root.classList.toggle('light', saved === 'light' || (!saved && matchMedia('(prefers-color-scheme: light)').matches));
 
-      function label(b, dark) { b.setAttribute('aria-label', dark ? 'Dark mode' : 'Light mode'); b.title = dark ? 'Dark mode' : 'Light mode'; }
+      var label = function (b, dark) { b.setAttribute('aria-label', dark ? 'Dark mode' : 'Light mode'); b.title = dark ? 'Dark mode' : 'Light mode'; }
 
       // Paint every .liquid-toggle button to match the current theme. Safe to
       // call any time, from anywhere — it only ever reads root's class and
       // writes the button's own state, no shared mutable "busy"/"dragging"
       // bookkeeping for it to race against.
-      function render(b) {
+      var render = function (b) {
         var dark = !root.classList.contains('light');
         b.setAttribute('aria-pressed', dark);
         b.style.setProperty('--complete', dark ? 100 : 0);
         label(b, dark);
       }
-      function sync() { $$('.liquid-toggle').forEach(render); }
+      var sync = function () { $$('.liquid-toggle').forEach(render); }
       sync(); addEventListener('DOMContentLoaded', sync);
 
-      function setTheme(dark, originEl) {
+      var setTheme = function (dark, originEl) {
         var apply = function () {
           root.classList.add('theme-fade'); clearTimeout(fadeT); fadeT = setTimeout(function () { root.classList.remove('theme-fade'); }, 500);
           root.classList.toggle('light', !dark);

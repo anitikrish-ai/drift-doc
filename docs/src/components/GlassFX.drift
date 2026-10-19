@@ -7,8 +7,8 @@
       var FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
       // offsetParent is always null for position:fixed elements (the drawer/sidebar/palette
       // panels all are), so visibility here is checked via rendered boxes instead.
-      function isVisible(el) { return !!(el && el.getClientRects().length); }
-      function visibleFocusable(root) {
+      var isVisible = function (el) { return !!(el && el.getClientRects().length); }
+      var visibleFocusable = function (root) {
         return $$(FOCUSABLE, root).filter(isVisible);
       }
       // Shared across the search-palette (5) and mobile-drawer (6) sections below,
@@ -24,7 +24,7 @@
       // section now runs in its own try/catch so they're genuinely independent:
       // a problem in the reading-progress bar can no longer be the reason
       // search doesn't open.
-      function section(name, fn) {
+      var section = function (name, fn) {
         try { fn(); } catch (err) { console.error('[DriftJS GlassFX] "' + name + '" failed to init:', err); }
       }
 
@@ -123,10 +123,10 @@
       document.body.appendChild(scrim);
       var panel = $('.palette', scrim), input = $('input', scrim), list = $('ul', scrim), sel = 0, shown = [], opener = null;
 
-      function setTriggersExpanded(v) {
+      var setTriggersExpanded = function (v) {
         $$('[data-open-palette]').forEach(function (t) { t.setAttribute('aria-expanded', v ? 'true' : 'false'); });
       }
-      function render() {
+      var render = function () {
         var q = input.value.trim().toLowerCase();
         shown = items.filter(function (i) { return !q || (i.t + ' ' + i.s).toLowerCase().indexOf(q) > -1; }).slice(0, 12);
         sel = shown.length ? Math.min(sel, shown.length - 1) : 0;
@@ -141,14 +141,14 @@
         });
         input.setAttribute('aria-activedescendant', shown.length ? 'palette-opt-' + sel : '');
       }
-      function open(from) {
+      var open = function (from) {
         opener = from || document.activeElement;
         if (from) { var r = from.getBoundingClientRect(), pr = panel.getBoundingClientRect(); // anchor to trigger
           panel.style.transformOrigin = (r.left + r.width / 2 - (innerWidth - Math.min(576, innerWidth - 32)) / 2) + 'px ' + (r.top - innerHeight * 0.14) + 'px'; }
         scrim.classList.add('open'); input.value = ''; sel = 0; render(); setTriggersExpanded(true);
         setTimeout(function () { input.focus(); }, 30);
       }
-      function close() { scrim.classList.remove('open'); setTriggersExpanded(false); if (opener && opener.focus) opener.focus(); }
+      var close = function () { scrim.classList.remove('open'); setTriggersExpanded(false); if (opener && opener.focus) opener.focus(); }
       scrim.addEventListener('pointerdown', function (e) { if (e.target === scrim) close(); });
       input.addEventListener('input', function () { sel = 0; render(); });
       input.addEventListener('keydown', function (e) {
@@ -181,7 +181,7 @@
       var drawerToggle = document.getElementById('nav-drawer-toggle');
       if (drawerToggle) {
         var drawerOpener = null;
-        function activeDrawerPanel() {
+        var activeDrawerPanel = function () {
           // The docs sidebar is a permanent, non-dismissible column above 1024px
           // (only a slide-in drawer below it) — nothing to trap focus in up there.
           if (!matchMedia('(max-width: 1024px)').matches) return null;
@@ -245,7 +245,7 @@
       var GLASS_SELECTOR = '.site-header, .search-trigger, .github-btn, .install-command-box, .gfx-toc, .palette, .docs-sidebar';
       var GLASS_MAX_AREA = 800 * 800;
       var glassed = typeof WeakSet === 'function' ? new WeakSet() : null;
-      function glassify() {
+      var glassify = function () {
         if (typeof window.liquidGlass !== 'function' || matchMedia('(prefers-reduced-transparency: reduce)').matches) return;
         $$(GLASS_SELECTOR).forEach(function (el) {
           if (glassed && glassed.has(el)) return;
