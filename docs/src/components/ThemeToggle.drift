@@ -2,45 +2,62 @@
   if (typeof window !== 'undefined' && !window.__lt) {
     window.__lt = true;
     (function () {
-      var root = document.documentElement, st = null, cancelAnim = function () {}, timer = 0, fadeT = 0;
+      // Better logic / rebuild: the previous version drove the knob with a
+      // hand-rolled requestAnimationFrame spring, fed by pointerdown/move/up
+      // drag-and-velocity physics, pointer capture, and a busy-flag to keep a
+      // delayed `sync()` from fighting a tap mid-flight. Every one of those
+      // was a place a stuck toggle could come from (a capture that never
+      // releases, a busy flag that never clears, a drag threshold that eats a
+      // tap). None of it is load-bearing: liquid-toggle.css now registers
+      // --complete as a real `@property`, so the browser animates the slide
+      // on its own the instant the number changes. The whole interaction is
+      // "one click, one state flip" — nothing left to get stuck.
+      var root = document.documentElement, fadeT = 0;
       var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
       var $$ = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
-      var clamp = function (v) { return Math.max(0, Math.min(100, v)); };
-      var cur = function (b) { return parseFloat(b.style.getPropertyValue('--complete')) || 0; };
-      var setC = function (b, v) { b.style.setProperty('--complete', clamp(v)); };
-      var flag = function (b, on) { b.dataset.active = b.dataset.pressed = on ? 'true' : 'false'; };
 
       // SVG filters made with the SVG parser (correct namespace); ids prefixed to avoid collisions
       if (!document.getElementById('lt-defs')) {
-        var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        s.id = 'lt-defs'; s.setAttribute('class', 'sr-only'); s.setAttribute('aria-hidden', 'true');
-        s.innerHTML = '<defs><filter id="lt-goo"><feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="b"/><feColorMatrix in="b" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 14 -10" result="m"/><feComposite in="m" operator="atop"/></filter><filter id="lt-remove-black" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 -255 -255 -255 0 1" result="bp"/><feMorphology in="bp" operator="dilate" radius="0.5" result="sm"/><feComposite in="SourceGraphic" in2="sm" operator="out"/></filter></defs>';
-        document.body.appendChild(s);
+        var defs = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        defs.id = 'lt-defs'; defs.setAttribute('class', 'sr-only'); defs.setAttribute('aria-hidden', 'true');
+        defs.innerHTML = '<defs><filter id="lt-goo"><feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="b"/><feColorMatrix in="b" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 14 -10" result="m"/><feComposite in="m" operator="atop"/></filter><filter id="lt-remove-black" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 -255 -255 -255 0 1" result="bp"/><feMorphology in="bp" operator="dilate" radius="0.5" result="sm"/><feComposite in="SourceGraphic" in2="sm" operator="out"/></filter></defs>';
+        document.body.appendChild(defs);
       }
 
       // Theme: saved choice, else system preference. Dark = knob on the right.
       var saved = null; try { saved = localStorage.getItem('drift-theme'); } catch (e) {}
       root.classList.toggle('light', saved === 'light' || (!saved && matchMedia('(prefers-color-scheme: light)').matches));
+
       function label(b, dark) { b.setAttribute('aria-label', dark ? 'Dark mode' : 'Light mode'); b.title = dark ? 'Dark mode' : 'Light mode'; }
-      function commit(dark, originEl) {
+
+      // Paint every .liquid-toggle button to match the current theme. Safe to
+      // call any time, from anywhere — it only ever reads root's class and
+      // writes the button's own state, no shared mutable "busy"/"dragging"
+      // bookkeeping for it to race against.
+      function render(b) {
+        var dark = !root.classList.contains('light');
+        b.setAttribute('aria-pressed', dark);
+        b.style.setProperty('--complete', dark ? 100 : 0);
+        label(b, dark);
+      }
+      function sync() { $$('.liquid-toggle').forEach(render); }
+      sync(); addEventListener('DOMContentLoaded', sync);
+
+      function setTheme(dark, originEl) {
         var apply = function () {
           root.classList.add('theme-fade'); clearTimeout(fadeT); fadeT = setTimeout(function () { root.classList.remove('theme-fade'); }, 500);
           root.classList.toggle('light', !dark);
           try { localStorage.setItem('drift-theme', dark ? 'dark' : 'light'); } catch (e) {}
-          if (navigator.vibrate) navigator.vibrate(8); // same frame as the flip
+          if (navigator.vibrate) navigator.vibrate(8);
+          sync();
         };
         // Real theme-change animation: a circular reveal growing from the toggle
-        // itself, done by the browser's own View Transitions engine (Chromium) —
-        // not another hand-rolled animation loop. Unsupported/reduced-motion
-        // browsers just get the instant class swap under the existing
-        // `theme-fade` CSS crossfade (glass.css), so nothing regresses there.
-        // Bug fix: this was called with no try/catch. If startViewTransition
-        // exists but throws (partial/buggy support on some browsers, or a
-        // transition already in flight) the exception aborted commit() before
-        // `apply()` ever ran and before `go()`'s spring animation started —
-        // the toggle froze completely (no slide, no theme change) instead of
-        // just not getting the fancy reveal. `used` guarantees apply() always
-        // runs exactly once either way.
+        // itself, done by the browser's own View Transitions engine (Chromium).
+        // Unsupported/reduced-motion browsers just get the instant class swap
+        // under the `theme-fade` CSS crossfade (glass.css), so nothing
+        // regresses there. Wrapped in try/catch: if startViewTransition exists
+        // but throws (a transition already in flight, partial support), `used`
+        // still guarantees `apply()` runs exactly once either way — no freeze.
         var used = false;
         if (!reduced && typeof document.startViewTransition === 'function') {
           try {
@@ -55,93 +72,31 @@
         }
         if (!used) apply();
       }
-      // Bug fix: sync() used to run again on `DOMContentLoaded` and `load` (the
-      // latter fires only once this page's ~3MB of JS, incl. the code editor,
-      // has finished downloading — easily *seconds* after the page is
-      // interactive). If the person tapped the toggle before `load` fired,
-      // sync() saw `st` already null (pointerup clears it immediately) and
-      // force-reset the knob mid-animation, fighting the pending tap/spring
-      // and leaving it visually stuck between states. Track "busy" per
-      // button for the whole tap->spring lifecycle, not just the drag, and
-      // have sync() skip any button that's mid-transition.
-      function sync() {
-        var dark = !root.classList.contains('light');
-        $$('.liquid-toggle').forEach(function (b) { if ((!st || st.b !== b) && !b.__drift_busy) { b.setAttribute('aria-pressed', dark); setC(b, dark ? 100 : 0); label(b, dark); } });
-      }
-      sync(); requestAnimationFrame(sync); addEventListener('DOMContentLoaded', sync); addEventListener('load', sync);
 
-      // Critically damped spring: starts from the live value and inherits velocity (interruptible)
-      function spring(from, to, v, cb, done, resp) {
-        var w = 6.2832 / resp, x = from - to, vel = v, last = performance.now(), id;
-        (function step(t) {
-          var dt = Math.min((t - last) / 1000, 0.032); last = t;
-          vel += (-2 * w * vel - w * w * x) * dt; x += vel * dt; cb(to + x);
-          if (Math.abs(x) > 0.1 || Math.abs(vel) > 0.5) id = requestAnimationFrame(step); else { cb(to); if (done) done(); }
-        })(last);
-        return function () { cancelAnimationFrame(id); };
-      }
-      function go(b, target, v) {
-        b.__drift_busy = true;
-        commit(target === 100, b);
-        label(b, target === 100);
-        cancelAnim = spring(cur(b), target, v, function (x) { setC(b, x); }, function () {
-          setTimeout(function () { flag(b, false); b.setAttribute('aria-pressed', target === 100); b.__drift_busy = false; }, 50);
-        }, reduced ? 0.12 : 0.25);
-      }
-      function tap(b) { // bubble swells first, then the knob slides (as in the skill)
-        var target = b.getAttribute('aria-pressed') === 'true' ? 0 : 100;
-        b.__drift_busy = true;
-        flag(b, true); timer = setTimeout(function () { go(b, target, 0); }, reduced ? 0 : 180);
-      }
+      // One listener, one path: a real `click` fires exactly once per real
+      // activation, whether it came from a mouse, a touch tap, or keyboard
+      // Enter/Space on the <button> — the browser already does that
+      // de-duplication, so there's no pointerdown/pointerup race, no
+      // "was this a drag or a tap" threshold, and no flag to keep in sync
+      // between two separate code paths doing the same thing.
+      document.addEventListener('click', function (e) {
+        var b = e.target.closest && e.target.closest('.liquid-toggle');
+        if (!b) return;
+        setTheme(root.classList.contains('light'), b); // currently light -> going dark, and vice versa
+      });
 
+      // Press feedback only (the knob "swells" — purely visual, see
+      // liquid-toggle.css's [data-pressed]/:active rules). Not involved in
+      // committing the theme change at all, so it can't get that stuck.
       document.addEventListener('pointerdown', function (e) {
-        var b = e.target.closest && e.target.closest('.liquid-toggle'); if (!b || e.button > 0) return;
-        clearTimeout(timer); cancelAnim(); // grab it mid-flight
-        b.setPointerCapture(e.pointerId); flag(b, true);
-        b.__drift_pointerHandled = true; // see click listener below
-        st = { b: b, x0: e.clientX, last: e.clientX, lt: performance.now(), v: 0, c0: cur(b), drag: false, travel: b.offsetWidth * 0.4 };
+        var b = e.target.closest && e.target.closest('.liquid-toggle');
+        if (b) b.dataset.pressed = b.dataset.active = 'true';
       });
-      document.addEventListener('pointermove', function (e) {
-        if (!st) return;
-        var dx = e.clientX - st.x0, now = performance.now();
-        if (!st.drag && Math.abs(dx) > 6) st.drag = true; // hysteresis
-        if (!st.drag) return;
-        setC(st.b, st.c0 + (dx / st.travel) * 100);
-        st.b.style.setProperty('--delta', Math.min(Math.abs(e.clientX - st.last), 12));
-        st.v = 0.7 * st.v + 0.3 * ((e.clientX - st.last) / Math.max(now - st.lt, 1)) * 1000;
-        st.last = e.clientX; st.lt = now;
-      });
-      function end(e, cancelled) {
-        if (!st) return; var s = st, b = s.b; st = null; b.style.setProperty('--delta', 0);
-        if (cancelled) { setC(b, s.c0); flag(b, false); return; }
-        if (!s.drag) return tap(b);
-        var vC = (s.v / s.travel) * 100, proj = cur(b) + vC * 0.12; // velocity decides, not just position
-        go(b, proj >= 50 ? 100 : 0, vC);
-      }
-      document.addEventListener('pointerup', function (e) { end(e, false); });
-      document.addEventListener('pointercancel', function (e) { end(e, true); });
-      // Bug fix / hardening: some mobile browsers (notably iOS Safari, after
-      // certain scroll/gesture interactions) drop a captured pointer without
-      // ever firing `pointerup` or `pointercancel`. Without this, `st` is
-      // never cleared and the knob is left stuck mid-press (swollen, with
-      // `--delta` still set) until the next unrelated pointer gesture. This
-      // event is the one reliable signal that capture is gone either way.
-      document.addEventListener('lostpointercapture', function (e) {
-        if (st && st.b === e.target) end(e, false);
-      });
-      document.addEventListener('click', function (e) { // keyboard only; pointer is handled above
-        var b = e.target.closest && e.target.closest('.liquid-toggle'); if (!b) return;
-        // Bug fix: this used to gate on `e.detail === 0`, meaning "no pointer,
-        // so this is keyboard activation" — but several mobile browsers fire
-        // the synthetic `click` that follows a touch tap with `detail === 0`
-        // too, not just real Enter/Space. That ran tap(b) TWICE per physical
-        // tap (once from pointerup, once from here), flipping the toggle
-        // right back before the theme change committed: knob visibly moves,
-        // theme silently reverts. A time-window guard is still a race; a flag
-        // set by pointerdown and consumed (cleared) right here is not —
-        // exactly one of these two paths can ever run tap() per interaction.
-        if (b.__drift_pointerHandled) { b.__drift_pointerHandled = false; return; }
-        clearTimeout(timer); cancelAnim(); tap(b);
+      ['pointerup', 'pointercancel', 'pointerleave', 'lostpointercapture'].forEach(function (evt) {
+        document.addEventListener(evt, function (e) {
+          var b = e.target.closest && e.target.closest('.liquid-toggle');
+          if (b) b.dataset.pressed = b.dataset.active = 'false';
+        });
       });
     })();
   }
