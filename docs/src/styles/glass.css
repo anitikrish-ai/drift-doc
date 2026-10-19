@@ -44,11 +44,11 @@ html.theme-fade, html.theme-fade * { transition: background-color .45s var(--eas
    never get this pseudo-element and fall back to the theme-fade crossfade
    above, so nothing breaks elsewhere. */
 @supports (view-transition-name: root) {
-  ::view-transition-group(root) { animation-duration: .75s; }
+  ::view-transition-group(root) { animation-duration: .65s; }
   ::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
   ::view-transition-new(root) {
     clip-path: circle(0% at var(--vt-x, 50%) var(--vt-y, 50%));
-    animation: drift-theme-reveal .75s cubic-bezier(.22, 1, .36, 1) forwards; will-change: clip-path;
+    animation: drift-theme-reveal .65s cubic-bezier(.32, .72, 0, 1) forwards; will-change: clip-path;
   }
   @keyframes drift-theme-reveal { to { clip-path: circle(150% at var(--vt-x, 50%) var(--vt-y, 50%)); } }
   @media (prefers-reduced-motion: reduce) {
