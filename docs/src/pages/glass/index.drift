@@ -9,6 +9,8 @@
   import GlassNav from '../../components/glass/GlassNav.drift';
   const nav = ['Home', 'Search', 'Library'];
   const navIcons = ['⌂', '⌕', '☰'];
+  import GlassMenu from '../../components/glass/GlassMenu.drift';
+  const menuItems = [{ label: 'Share' }, { label: 'Duplicate', checked: true }, { label: 'Delete', destructive: true }];
   const tabs = ['Day', 'Week', 'Month'];
 </script>
 
@@ -48,6 +50,11 @@
       <div class="glass-demo__row" style="margin-top:20px">
         <GlassSlider value={40} ariaLabel="Volume" />
       </div>
+    </GlassCard>
+
+    <GlassCard>
+      <h2>Menu</h2>
+      <GlassMenu items={menuItems} ariaLabel="More actions" align="start" />
     </GlassCard>
 
     <GlassCard>

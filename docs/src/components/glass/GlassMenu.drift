@@ -1,0 +1,30 @@
+<!-- Native DriftJS port of GlassMenu. props: items ({label, destructive?, checked?, disabled?}[]), trigger (glyph/text, default ⋯), ariaLabel, align start|end.
+     Open/close, outside-click, Esc and arrow keys handled by GlassUI; selecting emits `glass-change` {index} on the anchor. -->
+<script></script>
+<span class="lg-menu-anchor" data-align={props.align || 'end'}>
+  <button type="button" class="lg-glass lg-button lg-button--md lg-button--glass lg-menu__trigger" data-liquid-glass="" data-shimmer="" data-icon-only="" aria-haspopup="menu" aria-expanded="false" aria-label={props.ariaLabel}>
+    <span class="lg-button__label">{props.trigger || '⋯'}</span>
+  </button>
+  <div class="lg-menu-surface">
+    <div class="lg-glass lg-menu" data-liquid-glass="" aria-hidden="true"></div>
+    <div class="lg-menu__content" role="menu" aria-label={props.ariaLabel}>
+      @for (item, i) in props.items key i {
+        @if item.destructive {
+          <button type="button" role="menuitem" class="lg-menu__item" data-destructive="" data-index={i} disabled={item.disabled}>
+            <span class="lg-menu__label">{item.label}</span>
+            @if item.checked {
+              <span class="lg-menu__check">✓</span>
+            }
+          </button>
+        } @else {
+          <button type="button" role="menuitem" class="lg-menu__item" data-index={i} disabled={item.disabled}>
+            <span class="lg-menu__label">{item.label}</span>
+            @if item.checked {
+              <span class="lg-menu__check">✓</span>
+            }
+          </button>
+        }
+      }
+    </div>
+  </div>
+</span>
