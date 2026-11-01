@@ -70,8 +70,8 @@
       </p>
 
       <div class="hero-actions">
-        <a href="/guide/introduction/" class="btn-primary">
-          <span>Get Started &rarr;</span>
+        <a href="/guide/introduction/" class="lg-glass lg-button lg-button--lg lg-button--filled" data-liquid-glass="" data-shimmer="">
+          <span class="lg-button__label">Get Started &rarr;</span>
         </a>
       </div>
 

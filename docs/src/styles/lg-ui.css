@@ -23,20 +23,12 @@
   .lg-glass { background-color: var(--lg-menu-fill); }
 }
 @media (prefers-reduced-motion: reduce) { .lg-switch__thumb.lg-glass, .lg-track__select, .lg-track__lens, .lg-sheet.lg-glass { transition: none !important; animation: none !important; } }
-/* /glass/ showcase page */
-.glass-demo { min-height: 100dvh; padding: 6rem 1rem 4rem; }
-.glass-demo__stage { position: relative; max-width: 760px; margin: 0 auto; display: grid; gap: 20px; }
-.glass-demo__stage::before { content: ''; position: fixed; inset: 0; z-index: -1; background: radial-gradient(60vmax 60vmax at 15% 20%, #ff7a59 0, transparent 60%), radial-gradient(50vmax 50vmax at 85% 30%, #4f8bff 0, transparent 60%), radial-gradient(60vmax 60vmax at 50% 95%, #22d3a6 0, transparent 60%), #0d1020; }
-.glass-demo h1, .glass-demo h2, .glass-demo p { color: #fff; margin: 0 0 .5rem; }
-.glass-demo__row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
-.glass-demo .lg-card h2, .glass-demo .lg-sheet h2, .glass-demo .lg-sheet p { color: var(--lg-fg); }
-/* GlassMenu: static popover under the trigger (the React version sizes a morphing surface in JS). */
-.lg-menu-surface { top: calc(100% + 8px); min-width: 220px; display: none; transform-origin: top right; }
-.lg-menu-anchor[data-align='start'] .lg-menu-surface { transform-origin: top left; }
-.lg-menu-anchor[data-open] .lg-menu-surface { display: block; animation: lg-menu-pop .24s cubic-bezier(.32, .72, 0, 1); }
-.lg-menu__content { position: relative; top: auto; right: auto; left: auto; }
-.lg-menu.lg-glass { border-radius: 22px; }
-.lg-menu__item { width: 100%; text-align: left; }
-@keyframes lg-menu-pop { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .lg-menu-anchor[data-open] .lg-menu-surface { animation: none; } }
-.lg-glass:has(.lg-menu-anchor[data-open]) { z-index: 60; } /* open menu must paint above sibling cards */
+/* Site integration of the glass components */
+a.lg-button { text-decoration: none; }
+.copy-btn.lg-button { --lg-h: 28px; position: absolute; top: .65rem; right: .65rem; font-size: 12px; padding: 0 12px; opacity: 0; transition: opacity .2s; }
+pre:hover .copy-btn.lg-button, .copy-btn.lg-button:focus-visible, .copy-btn.lg-button.done { opacity: 1; }
+.copy-btn.lg-button.done { color: var(--accent-emerald); }
+.palette .lg-input__field { margin: .6rem .6rem 0; }
+.palette .lg-input__field input { flex: 1; min-width: 0; padding: 0; border: 0; outline: 0; border-bottom: 0; background: transparent; font: 500 1.05rem var(--font-sans); color: var(--lg-fg); }
+.visualizer-tabs.lg-track { display: inline-grid; grid-auto-flow: column; }
+.step-selector .lg-track { margin-left: .25rem; }

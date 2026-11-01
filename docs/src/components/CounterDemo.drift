@@ -44,16 +44,21 @@
 
     <div class="demo-controls">
       <div class="btn-group">
-        <button class="demo-btn primary" onclick={decrement}>{decText}</button>
-        <button class="demo-btn reset" onclick={reset}>Reset</button>
-        <button class="demo-btn primary" onclick={increment}>{incText}</button>
+        <button class="lg-glass lg-button lg-button--md lg-button--filled" data-liquid-glass="" data-shimmer="" onclick={decrement}>{decText}</button>
+        <button class="lg-glass lg-button lg-button--md lg-button--clear" data-liquid-glass="" data-shimmer="" onclick={reset}>Reset</button>
+        <button class="lg-glass lg-button lg-button--md lg-button--filled" data-liquid-glass="" data-shimmer="" onclick={increment}>{incText}</button>
       </div>
 
       <div class="step-selector" role="group" aria-label="Step size">
         <span class="step-label">Step size:</span>
-        <button class={step === 1 ? 'step-btn active' : 'step-btn'} aria-pressed={step === 1} onclick={() => setStep(1)}>1</button>
-        <button class={step === 5 ? 'step-btn active' : 'step-btn'} aria-pressed={step === 5} onclick={() => setStep(5)}>5</button>
-        <button class={step === 10 ? 'step-btn active' : 'step-btn'} aria-pressed={step === 10} onclick={() => setStep(10)}>10</button>
+        <div class="lg-track lg-track--segmented lg-track--sm" data-liquid-glass="" data-ready="" style={'--lg-count:3;--lg-index:' + (step === 1 ? 0 : step === 5 ? 1 : 2)}>
+          <span class="lg-glass lg-track__glass" aria-hidden="true"></span>
+          <span class="lg-track__select" aria-hidden="true"></span>
+          <button type="button" class="lg-track__item" data-lg-item="0" aria-pressed={step === 1} onclick={() => setStep(1)}><span class="lg-nav__label">1</span></button>
+          <button type="button" class="lg-track__item" data-lg-item="1" aria-pressed={step === 5} onclick={() => setStep(5)}><span class="lg-nav__label">5</span></button>
+          <button type="button" class="lg-track__item" data-lg-item="2" aria-pressed={step === 10} onclick={() => setStep(10)}><span class="lg-nav__label">10</span></button>
+          <span class="lg-glass lg-track__lens" aria-hidden="true"></span>
+        </div>
       </div>
     </div>
   </div>

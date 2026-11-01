@@ -12,10 +12,13 @@
       <span class="pulse-icon">⚡</span>
       <span>AOT Bytecode & Register Allocation Visualizer</span>
     </div>
-    <div class="visualizer-tabs" role="tablist" aria-label="Bytecode example">
-      <button class={activeTab === 'interpolation' ? 'tab-btn active' : 'tab-btn'} role="tab" aria-selected={activeTab === 'interpolation'} onclick={() => setTab('interpolation')}>Interpolation</button>
-      <button class={activeTab === 'if-directive' ? 'tab-btn active' : 'tab-btn'} role="tab" aria-selected={activeTab === 'if-directive'} onclick={() => setTab('if-directive')}>&#64;if Directive</button>
-      <button class={activeTab === 'for-directive' ? 'tab-btn active' : 'tab-btn'} role="tab" aria-selected={activeTab === 'for-directive'} onclick={() => setTab('for-directive')}>&#64;for Loop</button>
+    <div class="visualizer-tabs lg-track lg-track--segmented lg-track--sm" role="tablist" aria-label="Bytecode example" data-liquid-glass="" data-ready="" style={'--lg-count:3;--lg-index:' + (activeTab === 'interpolation' ? 0 : activeTab === 'if-directive' ? 1 : 2)}>
+      <span class="lg-glass lg-track__glass" aria-hidden="true"></span>
+      <span class="lg-track__select" aria-hidden="true"></span>
+      <button type="button" class="lg-track__item" role="tab" data-lg-item="0" aria-selected={activeTab === 'interpolation'} onclick={() => setTab('interpolation')}><span class="lg-nav__label">Interpolation</span></button>
+      <button type="button" class="lg-track__item" role="tab" data-lg-item="1" aria-selected={activeTab === 'if-directive'} onclick={() => setTab('if-directive')}><span class="lg-nav__label">&#64;if Directive</span></button>
+      <button type="button" class="lg-track__item" role="tab" data-lg-item="2" aria-selected={activeTab === 'for-directive'} onclick={() => setTab('for-directive')}><span class="lg-nav__label">&#64;for Loop</span></button>
+      <span class="lg-glass lg-track__lens" aria-hidden="true"></span>
     </div>
   </div>
 
