@@ -6,6 +6,9 @@
   import GlassSegmented from '../../components/glass/GlassSegmented.drift';
   import GlassSlider from '../../components/glass/GlassSlider.drift';
   import GlassSheet from '../../components/glass/GlassSheet.drift';
+  import GlassNav from '../../components/glass/GlassNav.drift';
+  const nav = ['Home', 'Search', 'Library'];
+  const navIcons = ['⌂', '⌕', '☰'];
   const tabs = ['Day', 'Week', 'Month'];
 </script>
 
@@ -45,6 +48,11 @@
       <div class="glass-demo__row" style="margin-top:20px">
         <GlassSlider value={40} ariaLabel="Volume" />
       </div>
+    </GlassCard>
+
+    <GlassCard>
+      <h2>Tab bar</h2>
+      <GlassNav items={nav} icons={navIcons} value={0} ariaLabel="Demo tabs" />
     </GlassCard>
 
     <GlassCard variant="clear">
