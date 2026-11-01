@@ -1,0 +1,99 @@
+<script>
+  // Behaviour for the native Liquid Glass components (components/glass/*): ONE set of
+  // delegated listeners, so any number of buttons/switches/sliders/sheets share it.
+  // (No nested `function` declarations: the DriftJS compiler rewrites them.)
+  if (typeof window !== 'undefined' && !window.__lgui) {
+    window.__lgui = true;
+    (function () {
+    var emit = function (el, detail) { el.dispatchEvent(new CustomEvent('glass-change', { bubbles: true, detail: detail })); };
+    var closest = function (e, sel) { return e.target && e.target.closest ? e.target.closest(sel) : null; };
+
+    // press feedback + pointer-follow glow
+    document.addEventListener('pointerdown', function (e) {
+      var el = closest(e, '.lg-button, .lg-switch, .lg-slider, .lg-track__item');
+      if (!el) return;
+      var host = el.classList.contains('lg-track__item') ? el.parentElement : el;
+      var r = host.getBoundingClientRect();
+      host.style.setProperty('--lg-x', ((e.clientX - r.left) / r.width * 100) + '%');
+      host.style.setProperty('--lg-y', ((e.clientY - r.top) / r.height * 100) + '%');
+      host.setAttribute('data-pressed', '');
+      host.removeAttribute('data-keyboard');
+    });
+    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(function (t) {
+      document.addEventListener(t, function () {
+        Array.prototype.forEach.call(document.querySelectorAll('[data-pressed].lg-button, [data-pressed].lg-switch, [data-pressed].lg-slider, [data-pressed].lg-track'), function (n) { n.removeAttribute('data-pressed'); });
+      });
+    });
+    document.addEventListener('keydown', function (e) {
+      var el = closest(e, '.lg-button, .lg-switch, .lg-slider, .lg-track');
+      if (el) el.setAttribute('data-keyboard', '');
+      if (e.key === 'Escape') {
+        var open = document.querySelector('.lg-sheet-layer:not([hidden])');
+        if (open) { open.hidden = true; if (open.__from && open.__from.focus) open.__from.focus(); }
+      }
+      // arrow keys move the segmented selection
+      var tab = closest(e, '.lg-track__item');
+      if (tab && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+        var items = tab.parentElement.querySelectorAll('.lg-track__item'), i = +tab.getAttribute('data-lg-item');
+        var n = items[(i + (e.key === 'ArrowRight' ? 1 : items.length - 1)) % items.length];
+        n.click(); n.focus(); e.preventDefault();
+      }
+    });
+
+    document.addEventListener('click', function (e) {
+      // switch
+      var sw = closest(e, '.lg-switch');
+      if (sw) {
+        var on = sw.getAttribute('aria-checked') !== 'true';
+        sw.setAttribute('aria-checked', on ? 'true' : 'false');
+        emit(sw, { checked: on });
+        return;
+      }
+      // segmented / tab selection
+      var item = closest(e, '.lg-track__item');
+      if (item) {
+        var bar = item.parentElement, idx = +item.getAttribute('data-lg-item');
+        Array.prototype.forEach.call(bar.querySelectorAll('.lg-track__item'), function (b) {
+          var sel = b === item; b.setAttribute('aria-selected', sel ? 'true' : 'false'); b.tabIndex = sel ? 0 : -1;
+        });
+        bar.style.setProperty('--lg-index', idx);
+        emit(bar, { index: idx });
+        return;
+      }
+      // input clear
+      var clr = closest(e, '.lg-input__clear');
+      if (clr) {
+        var inp = clr.parentElement.querySelector('input');
+        inp.value = ''; inp.dispatchEvent(new Event('input', { bubbles: true })); inp.focus();
+        return;
+      }
+      // sheets
+      var opener = closest(e, '[data-lg-open]');
+      if (opener) {
+        var sheet = document.getElementById(opener.getAttribute('data-lg-open'));
+        if (sheet) { sheet.__from = opener; sheet.hidden = false; var d = sheet.querySelector('[role=dialog]'); if (d) d.focus(); }
+        return;
+      }
+      if (closest(e, '[data-lg-close]')) {
+        var layer = closest(e, '.lg-sheet-layer');
+        if (layer) { layer.hidden = true; if (layer.__from && layer.__from.focus) layer.__from.focus(); }
+      }
+    });
+
+    document.addEventListener('input', function (e) {
+      var rng = closest(e, '.lg-slider__input');
+      if (rng) {
+        var p = (rng.value - rng.min) / (rng.max - rng.min);
+        rng.parentElement.style.setProperty('--lg-progress', p);
+        emit(rng.parentElement, { value: +rng.value });
+        return;
+      }
+      var inp = closest(e, '.lg-input__field input');
+      if (inp) inp.parentElement.toggleAttribute('data-empty', !inp.value);
+    });
+    document.addEventListener('focusin', function (e) { var f = closest(e, '.lg-input__field'); if (f) f.setAttribute('data-focused', ''); });
+    document.addEventListener('focusout', function (e) { var f = closest(e, '.lg-input__field'); if (f) f.removeAttribute('data-focused'); });
+    })();
+  }
+</script>
+<span hidden></span>

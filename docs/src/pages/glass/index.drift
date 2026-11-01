@@ -1,0 +1,61 @@
+<script>
+  import GlassButton from '../../components/glass/GlassButton.drift';
+  import GlassCard from '../../components/glass/GlassCard.drift';
+  import GlassInput from '../../components/glass/GlassInput.drift';
+  import GlassSwitch from '../../components/glass/GlassSwitch.drift';
+  import GlassSegmented from '../../components/glass/GlassSegmented.drift';
+  import GlassSlider from '../../components/glass/GlassSlider.drift';
+  import GlassSheet from '../../components/glass/GlassSheet.drift';
+  const tabs = ['Day', 'Week', 'Month'];
+</script>
+
+<main class="glass-demo">
+  <div class="glass-demo__stage">
+    <h1>Liquid Glass components</h1>
+    <p>Native DriftJS ports of the Liquid Glass control set. No React.</p>
+
+    <GlassCard>
+      <h2>Buttons</h2>
+      <div class="glass-demo__row">
+        <GlassButton>Glass</GlassButton>
+        <GlassButton variant="clear">Clear</GlassButton>
+        <GlassButton variant="tinted">Tinted</GlassButton>
+        <GlassButton variant="filled">Filled</GlassButton>
+        <GlassButton variant="filled" destructive="true">Delete</GlassButton>
+        <GlassButton size="sm">Small</GlassButton>
+        <GlassButton size="lg">Large</GlassButton>
+      </div>
+    </GlassCard>
+
+    <GlassCard>
+      <h2>Inputs</h2>
+      <div class="glass-demo__row">
+        <GlassInput type="search" placeholder="Search" ariaLabel="Search demo" />
+        <GlassInput label="Name" placeholder="Ada Lovelace" />
+      </div>
+    </GlassCard>
+
+    <GlassCard>
+      <h2>Switch, segmented, slider</h2>
+      <div class="glass-demo__row">
+        <GlassSwitch checked="true" ariaLabel="Notifications" />
+        <GlassSwitch ariaLabel="Airplane mode" />
+        <GlassSegmented options={tabs} value={1} ariaLabel="Range" />
+      </div>
+      <div class="glass-demo__row" style="margin-top:20px">
+        <GlassSlider value={40} ariaLabel="Volume" />
+      </div>
+    </GlassCard>
+
+    <GlassCard variant="clear">
+      <h2>Sheet</h2>
+      <GlassButton variant="filled" size="lg" opens="demo-sheet">Open sheet</GlassButton>
+    </GlassCard>
+  </div>
+
+  <GlassSheet id="demo-sheet" ariaLabel="Demo sheet">
+    <h2>Bottom sheet</h2>
+    <p>Dismiss with the scrim, Escape, or the button.</p>
+    <GlassButton variant="filled" closes="true">Done</GlassButton>
+  </GlassSheet>
+</main>

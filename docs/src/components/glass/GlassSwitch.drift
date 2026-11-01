@@ -1,0 +1,7 @@
+<!-- Native DriftJS port of GlassSwitch. props: checked (true|false), ariaLabel, tint. Toggling handled by GlassUI (emits `glass-change`). -->
+<script></script>
+<button type="button" role="switch" class="lg-switch" data-liquid-glass="" aria-checked={props.checked ? 'true' : 'false'} aria-label={props.ariaLabel} style={props.tint ? '--lg-switch-on:' + props.tint : ''}>
+  <span class="lg-switch__track" aria-hidden="true"></span>
+  <span class="lg-switch__fill" aria-hidden="true"></span>
+  <span class="lg-glass lg-switch__thumb" aria-hidden="true"><span class="lg-switch__face"></span></span>
+</button>

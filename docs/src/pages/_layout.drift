@@ -3,9 +3,12 @@
   import Footer from '../components/Footer.drift';
   import Analytics from '../components/Analytics.drift';
   import GlassFX from '../components/GlassFX.drift';
+  import GlassUI from '../components/GlassUI.drift';
   import '../styles/docs.css';
   import '../styles/glass.css';
   import '../styles/liquid-toggle.css';
+  import '../styles/lg.css';
+  import '../styles/lg-ui.css';
 
   let isRoot = url === '/' || url === '';
 </script>
@@ -20,5 +23,6 @@
   <Footer />
   <Analytics client:load />
   <GlassFX client:load />
+  <GlassUI client:load />
 </div>
 

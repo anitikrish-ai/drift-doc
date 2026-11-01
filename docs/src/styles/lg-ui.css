@@ -1,0 +1,32 @@
+/* Glue for the native .drift Liquid Glass components (lg.css): state that the
+   React library drove with JS springs is done here with CSS transitions instead. */
+.lg-switch__thumb.lg-glass { transform: translate(calc(var(--lg-tx, 0) * 1px), -50%) scale(.655); transition: transform .38s cubic-bezier(.32, .72, 0, 1); }
+.lg-switch[aria-checked='true'] { --lg-tx: 22; }
+.lg-switch__fill { transition: opacity .25s ease; }
+.lg-switch[aria-checked='true'] .lg-switch__fill { opacity: 1; }
+.lg-switch[data-pressed] .lg-switch__thumb.lg-glass { transform: translate(calc(var(--lg-tx, 0) * 1px), -50%) scale(.9, .78); }
+.lg-slider__input { pointer-events: auto; }
+.lg-slider__fill { transition: none; }
+.lg-slider[data-pressed] { --lg-lift: 1; }
+.lg-slider[data-pressed] .lg-slider__thumb.lg-glass { scale: .85; transition: scale .2s cubic-bezier(.32, .72, 0, 1); }
+.lg-input__field[data-empty] .lg-input__clear { display: none; }
+.lg-track__select, .lg-track__lens { transition: transform .38s cubic-bezier(.32, .72, 0, 1); }
+.lg-track__item { cursor: pointer; }
+.lg-sheet-layer { transition: opacity .25s ease; }
+.lg-sheet-layer:not([hidden]) .lg-sheet__scrim { opacity: 1; transition: opacity .3s ease; }
+.lg-sheet-layer:not([hidden]) .lg-sheet.lg-glass { transform: none; animation: lg-sheet-rise .45s cubic-bezier(.32, .72, 0, 1); }
+.lg-sheet-layer { pointer-events: none; } .lg-sheet-layer:not([hidden]) { pointer-events: auto; }
+.lg-sheet-layer[hidden] { display: none; }
+@keyframes lg-sheet-rise { from { transform: translateY(100%); } to { transform: none; } }
+/* Fallback when backdrop-filter is unsupported: opaque panels. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .lg-glass { background-color: var(--lg-menu-fill); }
+}
+@media (prefers-reduced-motion: reduce) { .lg-switch__thumb.lg-glass, .lg-track__select, .lg-track__lens, .lg-sheet.lg-glass { transition: none !important; animation: none !important; } }
+/* /glass/ showcase page */
+.glass-demo { min-height: 100dvh; padding: 6rem 1rem 4rem; }
+.glass-demo__stage { position: relative; max-width: 760px; margin: 0 auto; display: grid; gap: 20px; }
+.glass-demo__stage::before { content: ''; position: fixed; inset: 0; z-index: -1; background: radial-gradient(60vmax 60vmax at 15% 20%, #ff7a59 0, transparent 60%), radial-gradient(50vmax 50vmax at 85% 30%, #4f8bff 0, transparent 60%), radial-gradient(60vmax 60vmax at 50% 95%, #22d3a6 0, transparent 60%), #0d1020; }
+.glass-demo h1, .glass-demo h2, .glass-demo p { color: #fff; margin: 0 0 .5rem; }
+.glass-demo__row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.glass-demo .lg-card h2, .glass-demo .lg-sheet h2, .glass-demo .lg-sheet p { color: var(--lg-fg); }

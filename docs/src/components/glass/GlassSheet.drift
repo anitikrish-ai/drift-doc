@@ -1,0 +1,9 @@
+<!-- Native DriftJS port of GlassSheet (static bottom sheet). props: id, ariaLabel. Open with any element carrying data-lg-open="<id>"; close via scrim, Escape or [data-lg-close]. -->
+<script></script>
+<div class="lg-sheet-layer" id={props.id} data-liquid-glass="" hidden>
+  <div class="lg-sheet__scrim" data-lg-close="" aria-hidden="true"></div>
+  <div role="dialog" aria-modal="true" aria-label={props.ariaLabel} tabindex="-1" class="lg-glass lg-glass--host lg-sheet">
+    <div class="lg-sheet__grabber-zone" aria-hidden="true"><span class="lg-sheet__grabber"></span></div>
+    <div class="lg-sheet__content">{children}</div>
+  </div>
+</div>

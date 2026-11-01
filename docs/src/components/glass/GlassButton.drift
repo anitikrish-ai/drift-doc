@@ -1,0 +1,12 @@
+<!-- Native DriftJS port of GlassButton (@zakisheriff/liquid-glass, MIT).
+     props: opens (sheet id), closes, variant glass|clear|tinted|tinted-filled|filled, size sm|md|lg, tint, destructive, icon, label, ariaLabel, onclick -->
+<script></script>
+@if props.destructive {
+  <button type="button" class={'lg-glass lg-button lg-button--' + (props.size || 'md') + ' lg-button--' + (props.variant || 'glass')} data-liquid-glass="" data-shimmer="" data-destructive="" style={props.tint ? '--lg-tint:' + props.tint : ''} aria-label={props.ariaLabel} data-lg-open={props.opens} data-lg-close={props.closes} onclick={props.onclick}>
+    <span class="lg-button__label">{children}</span>
+  </button>
+} @else {
+  <button type="button" class={'lg-glass lg-button lg-button--' + (props.size || 'md') + ' lg-button--' + (props.variant || 'glass')} data-liquid-glass="" data-shimmer="" style={props.tint ? '--lg-tint:' + props.tint : ''} aria-label={props.ariaLabel} data-lg-open={props.opens} data-lg-close={props.closes} onclick={props.onclick}>
+    <span class="lg-button__label">{children}</span>
+  </button>
+}

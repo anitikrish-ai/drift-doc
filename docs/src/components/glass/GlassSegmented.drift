@@ -1,0 +1,10 @@
+<!-- Native DriftJS port of GlassSegmented. props: options (string[]), value (index), size, ariaLabel. Selection handled by GlassUI (emits `glass-change`). -->
+<script></script>
+<div role="tablist" aria-label={props.ariaLabel} class={'lg-track lg-track--segmented' + (props.size === 'sm' ? ' lg-track--sm' : '')} data-liquid-glass="" data-ready="" style={'--lg-count:' + props.options.length + ';--lg-index:' + (props.value || 0)}>
+  <span class="lg-glass lg-track__glass" aria-hidden="true"></span>
+  <span class="lg-track__select" aria-hidden="true"></span>
+  @for (opt, i) in props.options key i {
+    <button type="button" role="tab" data-lg-item={i} aria-selected={i === (props.value || 0) ? 'true' : 'false'} tabindex={i === (props.value || 0) ? '0' : '-1'} class="lg-track__item"><span class="lg-nav__label">{opt}</span></button>
+  }
+  <span class="lg-glass lg-track__lens" aria-hidden="true"></span>
+</div>

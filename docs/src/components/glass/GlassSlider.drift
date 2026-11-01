@@ -1,0 +1,7 @@
+<!-- Native DriftJS port of GlassSlider. props: value, min, max, step, ariaLabel, tint. Uses a real <input type=range>; GlassUI keeps --lg-progress in sync. -->
+<script></script>
+<div class="lg-slider" data-liquid-glass="" style={'--lg-progress:' + (((props.value || 0) - (props.min || 0)) / ((props.max || 100) - (props.min || 0))) + ';--lg-over:0px;--lg-lift:0' + (props.tint ? ';--lg-slider-fill:' + props.tint : '')}>
+  <span class="lg-slider__rail" aria-hidden="true"><span class="lg-slider__fill"></span></span>
+  <span class="lg-slider__thumb-slot" aria-hidden="true"><span class="lg-glass lg-slider__thumb"></span></span>
+  <input class="lg-slider__input" type="range" min={props.min || 0} max={props.max || 100} step={props.step || 1} value={props.value || 0} aria-label={props.ariaLabel} />
+</div>

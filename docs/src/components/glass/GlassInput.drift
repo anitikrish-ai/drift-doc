@@ -1,0 +1,14 @@
+<!-- Native DriftJS port of GlassInput. props: type, placeholder, label, name, ariaLabel. Clear button + focus ring handled by GlassUI. -->
+<script></script>
+<label class="lg-input" data-liquid-glass="">
+  @if props.label {
+    <span class="lg-input__label">{props.label}</span>
+  }
+  <div class="lg-glass lg-input__field" data-empty="">
+    @if props.type === 'search' {
+      <span class="lg-input__icon" aria-hidden="true"><svg viewBox="0 0 256 256" width="20" height="20" fill="currentColor"><path d="M229.66 218.34l-50.07-50.06a88.11 88.11 0 10-11.31 11.31l50.06 50.07a8 8 0 0011.32-11.32zM40 112a72 72 0 1172 72 72.08 72.08 0 01-72-72z"/></svg></span>
+    }
+    <input type={props.type || 'text'} name={props.name} placeholder={props.placeholder} aria-label={props.ariaLabel || props.label || props.placeholder} autocomplete="off" />
+    <button type="button" class="lg-input__clear" aria-label="Clear" tabindex="-1"><svg viewBox="0 0 256 256" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M128 24a104 104 0 10104 104A104.11 104.11 0 00128 24zm37.66 130.34a8 8 0 01-11.32 11.32L128 139.31l-26.34 26.35a8 8 0 01-11.32-11.32L116.69 128 90.34 101.66a8 8 0 0111.32-11.32L128 116.69l26.34-26.35a8 8 0 0111.32 11.32L139.31 128z"/></svg></button>
+  </div>
+</label>
